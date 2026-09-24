@@ -434,14 +434,17 @@ $("sync").onclick = () => run("setup-status", "Syncing Spotify…", async () => 
   const r = await api("/api/sync", { method: "POST" });
   await loadStatus(); refreshTabs(); say("setup-status", `Synced ${r.followed} followed and ${r.saved} saved-track artists.`);
 }, null, $("sync"));
-$("files").onchange = (e) => run("setup-status", "Importing…", async () => {
-  const fd = new FormData();
-  for (const f of e.target.files) fd.append("files", f);
-  const r = await api("/api/upload", { method: "POST", body: fd });
-  await loadStatus(); refreshTabs("trends");
-  say("setup-status", (r.added ? `Added ${r.added.toLocaleString()} plays.` : "No new plays. These files were already imported.")
-    + (r.skipped ? ` Skipped ${r.skipped.join(", ")}.` : ""));
-}, null, $("files"));
+$("files").onchange = async (e) => {
+  await run("setup-status", "Importing…", async () => {
+    const fd = new FormData();
+    for (const f of e.target.files) fd.append("files", f);
+    const r = await api("/api/upload", { method: "POST", body: fd });
+    await loadStatus(); refreshTabs("trends");
+    say("setup-status", (r.added ? `Added ${r.added.toLocaleString()} plays.` : "No new plays. These files were already imported.")
+      + (r.skipped ? ` Skipped ${r.skipped.join(", ")}.` : ""));
+  }, null, $("files"));
+  e.target.value = "";  // lets the same file be re-selected after a failed or duplicate import
+};
 
 // ---- tabs
 const TABS = ["trends", "similar", "blends"];
