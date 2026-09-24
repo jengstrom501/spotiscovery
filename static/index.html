@@ -358,7 +358,7 @@ function say(id, msg, err) { $(id).textContent = msg || ""; $(id).classList.togg
 // clearOnError: a container holding loading skeletons, emptied if the request fails.
 async function run(statusId, msg, fn, clearOnError) {
   say(statusId, msg);
-  try { await fn(); say(statusId, ""); }
+  try { await fn(); if ($(statusId).textContent === msg) say(statusId, ""); }  // keep a result message fn wrote
   catch (e) { say(statusId, e.message, true); if (clearOnError) clearOnError.innerHTML = ""; }
 }
 // Fades a render's top-level children in with a small stagger, once, as the content lands.
