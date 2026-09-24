@@ -303,6 +303,7 @@
         <label for="obscurity">Mainstream</label>
         <input type="range" id="obscurity" min="0" max="1" step="0.25" value="0.5">
         <label for="obscurity">Deep cuts</label>
+        <span class="dim small" id="obscurity-label"></span>
       </div>
       <button class="primary" id="run-similar">Find artists</button>
     </div>
@@ -557,16 +558,25 @@ function card(a, extra = "") {
 const FIRST_RUN = "Asking Last.fm. The first run takes a minute or two, then it is cached.";
 const blendTitle = (tags) => tags.map(esc).join(`<span class="x">×</span>`);
 
-$("run-similar").onclick = () => {
+const OBSCURITY_LABELS = { "0": "No filter", "0.25": "Slight lean to lesser-known", "0.5": "Balanced",
+  "0.75": "Leans lesser-known", "1": "Strongly favors lesser-known" };
+function updateObscurityLabel() { $("obscurity-label").textContent = OBSCURITY_LABELS[$("obscurity").value] || ""; }
+function runSimilar() {
   const out = $("similar-body");
   out.innerHTML = skeleton(9);
-  run("similar-status", FIRST_RUN, async () => {
+  return run("similar-status", FIRST_RUN, async () => {
     const recs = await api("/api/similar?obscurity=" + $("obscurity").value);
     out.innerHTML = recs.length ? recs.map((r) => card(r)).join("")
       : `<div class="empty" style="grid-column: 1 / -1">Nothing new at this setting. Try moving the slider.</div>`;
     reveal(out);
   }, out, $("run-similar"));
-};
+}
+$("run-similar").onclick = runSimilar;
+$("obscurity").oninput = updateObscurityLabel;
+// ponytail: no per-request debounce/mutex — "change" only fires once per drag release, and results are
+// cached, so overlapping requests are unlikely; add one if reports show otherwise.
+$("obscurity").onchange = runSimilar;
+updateObscurityLabel();
 
 // ---- blends
 const picked = new Set();
