@@ -317,6 +317,7 @@
       <h2>Mix your own</h2>
       <p class="dim">Pick two or three of your tags to find artists that sit in all of them.</p>
       <div id="tag-pick" class="tag-pick"></div>
+      <p class="status" id="tag-pick-status" role="status" style="margin-top:8px"></p>
       <div class="row" style="margin-top:16px"><button class="primary" id="run-blend" disabled>Blend selected</button></div>
       <p class="status" id="blend-status" role="status" style="margin-top:10px"></p>
       <div id="manual-body"></div>
@@ -566,20 +567,27 @@ $("run-similar").onclick = () => {
 
 // ---- blends
 const picked = new Set();
+function updateTagPick() {
+  const atCap = picked.size >= 3;
+  $("tag-pick").querySelectorAll("button").forEach((b) => { b.disabled = atCap && !picked.has(b.dataset.tag); });
+  $("run-blend").disabled = picked.size < 2;
+  say("tag-pick-status", atCap ? "Up to 3 tags." : "");
+}
 async function loadBlends() {
   const out = $("blends-body");
   out.innerHTML = [1, 2].map(() => `<div class="blend"><span class="sk-h"></span><div class="hscroll">${skeleton(5)}</div></div>`).join("");
   return run("blends-status", FIRST_RUN, async () => {
     const d = await api("/api/blends");
     $("tag-pick").innerHTML = d.tags.map(([t]) => `<button class="tag" aria-pressed="false" data-tag="${esc(t)}">${esc(t)}</button>`).join("");
-    picked.clear(); $("run-blend").disabled = true;  // chips were re-rendered unpressed
+    picked.clear();  // chips were re-rendered unpressed
     $("tag-pick").querySelectorAll("button").forEach((b) => (b.onclick = () => {
       const on = !picked.has(b.dataset.tag);
       if (on && picked.size >= 3) return;
       on ? picked.add(b.dataset.tag) : picked.delete(b.dataset.tag);
       b.setAttribute("aria-pressed", on);
-      $("run-blend").disabled = picked.size < 2;
+      updateTagPick();
     }));
+    updateTagPick();
     out.innerHTML = d.blends.length ? d.blends.map((b) => `<div class="blend">
         <h3>${blendTitle(b.tags)}</h3><div class="hscroll">${b.artists.map((a) => card(a)).join("")}</div></div>`).join("")
       : `<div class="empty">No blends yet. They need a bit more listening data.</div>`;
