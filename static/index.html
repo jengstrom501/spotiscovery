@@ -396,7 +396,10 @@ async function loadStatus() {
   else if (!state.lastfm) say("setup-status", "Add a Last.fm key. Similar sound and Blends need it.");
   else say("setup-status", "");
   const err = new URLSearchParams(location.search).get("error");
-  if (err) say("setup-status", "Spotify login failed: " + err, true);
+  if (err) {
+    say("setup-status", "Spotify login failed: " + err, true);
+    history.replaceState(null, "", location.pathname);  // a reload shouldn't show the old error again
+  }
   if (firstStatus) {
     firstStatus = false;
     setSetup(!!err || !state.spotify_app || !state.lastfm || (!state.connected && !state.plays));

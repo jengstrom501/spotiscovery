@@ -2,6 +2,7 @@
 import json
 import os
 import traceback
+from urllib.parse import quote
 
 from flask import Flask, jsonify, redirect, request, send_from_directory
 from werkzeug.exceptions import HTTPException
@@ -92,17 +93,28 @@ def settings():
     return jsonify(saved=list(updates))
 
 
+def back_with_error(msg):
+    """/login and /callback are page loads, not fetches: show errors in Setup instead of a raw JSON page."""
+    return redirect("/?error=" + quote(msg))
+
+
 @app.get("/login")
 def login():
+    if not os.environ.get("SPOTIFY_CLIENT_ID"):
+        return back_with_error("Add your Spotify Client ID in Setup first.")
     return redirect(spotify.login_url())
 
 
 @app.get("/callback")
 def callback():
     if request.args.get("error"):
-        return redirect("/?error=" + request.args["error"])
-    spotify.finish_login(request.args.get("code"), request.args.get("state"))
-    spotify.sync()
+        return back_with_error(request.args["error"])
+    try:
+        spotify.finish_login(request.args.get("code"), request.args.get("state"))
+        spotify.sync()
+    except Exception as e:  # stale OAuth state, failed token exchange, network
+        traceback.print_exc()
+        return back_with_error(str(e))
     return redirect("/")
 
 
