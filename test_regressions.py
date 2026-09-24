@@ -70,6 +70,26 @@ def issue_003_login_errors_return_to_app():
             os.environ["SPOTIFY_CLIENT_ID"] = saved
 
 
+def issue_008_rejected_uploads_explained():
+    # Regression: ISSUE-008 - a zip or bad JSON showed raw Python exceptions, and one bad file aborted the rest
+    import io
+    import json
+
+    def post(*files):
+        body = {"files": [(io.BytesIO(data), name) for name, data in files]}
+        return client.post("/api/upload", data=body, content_type="multipart/form-data")
+
+    r = post(("my_spotify_data.zip", b"PK\x03\x04\x99 zip bytes"))
+    assert r.status_code == 400 and "still zipped" in r.get_json()["error"] and "Unzip" in r.get_json()["error"], r.get_json()
+    r = post(("notes.json", b"this is not json"))
+    assert r.status_code == 400 and "not JSON" in r.get_json()["error"], r.get_json()
+    music = [{"ts": "2024-05-01T10:00:00Z", "master_metadata_album_artist_name": "Hum", "ms_played": 200000}]
+    video = [{"ts": "2024-05-01T11:00:00Z", "master_metadata_album_artist_name": None, "ms_played": 200000}]
+    r = post(("Streaming_History_Audio_2024_1.json", json.dumps(music).encode()),
+             ("Streaming_History_Video_2024.json", json.dumps(video).encode()))
+    assert r.get_json() == {"added": 1, "skipped": ["Streaming_History_Video_2024.json (no music plays)"]}, r.get_json()
+
+
 if __name__ == "__main__":
     for name, check in list(globals().items()):
         if name.startswith("issue_"):
