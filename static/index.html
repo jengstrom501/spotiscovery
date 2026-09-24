@@ -316,6 +316,7 @@
       <p class="dim">Pick two or three of your tags to find artists that sit in all of them.</p>
       <div id="tag-pick" class="tag-pick"></div>
       <div class="row" style="margin-top:16px"><button class="primary" id="run-blend" disabled>Blend selected</button></div>
+      <p class="status" id="blend-status" role="status" style="margin-top:10px"></p>
       <div id="manual-body"></div>
     </div>
     <div class="block">
@@ -562,7 +563,7 @@ async function loadBlends() {
 $("run-blend").onclick = async () => {
   const out = $("manual-body");
   out.innerHTML = `<div class="blend"><span class="sk-h"></span><div class="hscroll">${skeleton(5)}</div></div>`;
-  await run("blends-status", "Blending…", async () => {
+  await run("blend-status", "Blending…", async () => {
     const d = await api("/api/blend?tags=" + encodeURIComponent([...picked].join(",")));
     out.innerHTML = `<div class="blend"><h3>${blendTitle(d.tags)}</h3>` +
       (d.artists.length ? `<div class="hscroll">${d.artists.map((a) => card(a)).join("")}</div>` : `<div class="empty">No overlap you haven't heard. Try another mix.</div>`) + `</div>`;
