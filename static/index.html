@@ -396,9 +396,11 @@ async function loadStatus() {
   $("plays-info").textContent = state.plays
     ? `${state.plays.toLocaleString()} plays imported, ${state.first?.slice(0, 4)} to ${state.last?.slice(0, 4)}.` : "";
   say("claude-status", state.claude ? "" : "Add an Anthropic key in Setup to turn this on.");
-  if (!state.spotify_app) say("setup-status", "Add your Spotify Client ID, then connect.");
-  else if (!state.lastfm) say("setup-status", "Add a Last.fm key. Similar sound and Blends need it.");
-  else say("setup-status", "");
+  // Spotify is optional once history is imported. Last.fm is what every recommendation needs.
+  const noData = !state.connected && !state.plays;
+  say("setup-status", !state.lastfm && noData ? "Add a Last.fm key, then connect Spotify or import your history."
+    : !state.lastfm ? "Add a Last.fm key. Similar sound and Blends need it."
+    : noData ? "Connect Spotify or import your history to get started." : "");
   const err = new URLSearchParams(location.search).get("error");
   if (err) {
     say("setup-status", "Spotify login failed: " + err, true);
@@ -406,7 +408,7 @@ async function loadStatus() {
   }
   if (firstStatus) {
     firstStatus = false;
-    setSetup(!!err || !state.spotify_app || !state.lastfm || (!state.connected && !state.plays));
+    setSetup(!!err || !state.lastfm || noData);
   }
 }
 $("save-keys").onclick = () => run("keys-status", "Saving…", async () => {
