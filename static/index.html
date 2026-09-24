@@ -361,8 +361,8 @@ function say(id, msg, err) { $(id).textContent = msg || ""; $(id).classList.togg
 async function run(statusId, msg, fn, clearOnError, btn) {
   if (btn) btn.disabled = true;
   say(statusId, msg);
-  try { await fn(); if ($(statusId).textContent === msg) say(statusId, ""); }  // keep a result message fn wrote
-  catch (e) { say(statusId, e.message, true); if (clearOnError) clearOnError.innerHTML = ""; }
+  try { await fn(); if ($(statusId).textContent === msg) say(statusId, ""); return true; }  // keep a result message fn wrote
+  catch (e) { say(statusId, e.message, true); if (clearOnError) clearOnError.innerHTML = ""; return false; }
   finally { if (btn) btn.disabled = false; }
 }
 // Fades a render's top-level children in with a small stagger, once, as the content lands.
@@ -415,6 +415,7 @@ $("save-keys").onclick = () => run("keys-status", "Saving…", async () => {
                            anthropic_api_key: $("key-claude").value }) });
   $("key-spotify").value = $("key-lastfm").value = $("key-claude").value = "";
   await loadStatus();
+  if (r.saved.length) refreshTabs();
   say("keys-status", r.saved.length ? `Saved ${r.saved.length} key${r.saved.length > 1 ? "s" : ""}.` : "Nothing to save. Fill in a field first.");
 }, null, $("save-keys"));
 $("connect").onclick = (e) => {
@@ -422,23 +423,32 @@ $("connect").onclick = (e) => {
 };
 $("sync").onclick = () => run("setup-status", "Syncing Spotify…", async () => {
   const r = await api("/api/sync", { method: "POST" });
-  await loadStatus(); say("setup-status", `Synced ${r.followed} followed and ${r.saved} saved-track artists.`);
+  await loadStatus(); refreshTabs(); say("setup-status", `Synced ${r.followed} followed and ${r.saved} saved-track artists.`);
 }, null, $("sync"));
 $("files").onchange = (e) => run("setup-status", "Importing…", async () => {
   const fd = new FormData();
   for (const f of e.target.files) fd.append("files", f);
   const r = await api("/api/upload", { method: "POST", body: fd });
-  await loadStatus(); loaded.trends = false; showTab("trends");
+  await loadStatus(); refreshTabs("trends");
   say("setup-status", (r.added ? `Added ${r.added.toLocaleString()} plays.` : "No new plays. These files were already imported.")
     + (r.skipped ? ` Skipped ${r.skipped.join(", ")}.` : ""));
 }, null, $("files"));
 
 // ---- tabs
 const loaded = {};
+const loaders = { trends: loadTrends, blends: loadBlends };
 function showTab(name) {
   document.querySelectorAll("nav.tabs button").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === name));
   document.querySelectorAll("section.tab").forEach((s) => (s.hidden = s.id !== name));
-  if (!loaded[name]) { loaded[name] = true; ({ trends: loadTrends, blends: loadBlends }[name] || (() => {}))(); }
+  if (loaders[name] && !loaded[name]) {
+    loaded[name] = true;
+    loaders[name]().then((ok) => { if (!ok) loaded[name] = false; });  // a failed load retries on the next visit
+  }
+}
+// Data or keys changed: reload the open tab now, the others when they're next opened.
+function refreshTabs(name) {
+  for (const k in loaded) delete loaded[k];
+  showTab(name || document.querySelector("nav.tabs [aria-selected=true]").dataset.tab);
 }
 document.querySelectorAll("nav.tabs button").forEach((b) => (b.onclick = () => showTab(b.dataset.tab)));
 
@@ -457,7 +467,7 @@ const grid = { color: "#1E1E1B" };
 function chart(id, cfg) { charts.push(new Chart($(id), cfg)); }
 
 async function loadTrends() {
-  await run("trends-status", "Crunching your history…", async () => {
+  return run("trends-status", "Crunching your history…", async () => {
     const t = await api("/api/trends");
     charts.splice(0).forEach((c) => c.destroy());
     const body = $("trends-body");
@@ -546,9 +556,10 @@ const picked = new Set();
 async function loadBlends() {
   const out = $("blends-body");
   out.innerHTML = [1, 2].map(() => `<div class="blend"><span class="sk-h"></span><div class="hscroll">${skeleton(5)}</div></div>`).join("");
-  await run("blends-status", FIRST_RUN, async () => {
+  return run("blends-status", FIRST_RUN, async () => {
     const d = await api("/api/blends");
     $("tag-pick").innerHTML = d.tags.map(([t]) => `<button class="tag" aria-pressed="false" data-tag="${esc(t)}">${esc(t)}</button>`).join("");
+    picked.clear(); $("run-blend").disabled = true;  // chips were re-rendered unpressed
     $("tag-pick").querySelectorAll("button").forEach((b) => (b.onclick = () => {
       const on = !picked.has(b.dataset.tag);
       if (on && picked.size >= 3) return;
