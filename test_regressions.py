@@ -57,6 +57,19 @@ def issue_002_not_found_is_404():
         assert "error" in r.get_json()
 
 
+def issue_003_login_errors_return_to_app():
+    # Regression: ISSUE-003 - /login and /callback failures ended on a raw JSON page
+    saved = os.environ.pop("SPOTIFY_CLIENT_ID", None)
+    try:
+        for path in ("/login", "/callback?code=abc&state=stale", "/callback?error=access_denied"):
+            r = client.get(path)
+            assert r.status_code == 302, (path, r.status_code)
+            assert r.headers["Location"].startswith("/?error="), (path, r.headers["Location"])
+    finally:
+        if saved is not None:
+            os.environ["SPOTIFY_CLIENT_ID"] = saved
+
+
 if __name__ == "__main__":
     for name, check in list(globals().items()):
         if name.startswith("issue_"):
