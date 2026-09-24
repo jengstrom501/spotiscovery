@@ -43,6 +43,22 @@ def available():
     return bool(os.environ.get("ANTHROPIC_API_KEY"))
 
 
+def check(key):
+    """Live validity check for a candidate Anthropic key. True/False on a definitive answer, None if the
+    anthropic package isn't installed or the service couldn't be reached (a save shouldn't be blocked by that)."""
+    try:
+        import anthropic
+    except ImportError:
+        return None
+    try:
+        anthropic.Anthropic(api_key=key).models.retrieve("claude-haiku-4-5")  # one cheap metadata call, no tokens
+        return True
+    except anthropic.AuthenticationError:
+        return False
+    except Exception:
+        return None
+
+
 def suggest(profile, known, lf):
     import anthropic  # optional dependency, only needed here
 

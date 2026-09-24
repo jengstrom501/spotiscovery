@@ -80,7 +80,7 @@ def issue_008_rejected_uploads_explained():
         return client.post("/api/upload", data=body, content_type="multipart/form-data")
 
     r = post(("my_spotify_data.zip", b"PK\x03\x04\x99 zip bytes"))
-    assert r.status_code == 400 and "still zipped" in r.get_json()["error"] and "Unzip" in r.get_json()["error"], r.get_json()
+    assert r.status_code == 400 and "not a valid zip" in r.get_json()["error"], r.get_json()
     r = post(("notes.json", b"this is not json"))
     assert r.status_code == 400 and "not JSON" in r.get_json()["error"], r.get_json()
     music = [{"ts": "2024-05-01T10:00:00Z", "master_metadata_album_artist_name": "Hum", "ms_played": 200000}]
@@ -105,8 +105,58 @@ def issue_009_trends_without_lastfm_key():
             os.environ["LASTFM_API_KEY"] = saved
 
 
+def feature_zip_upload_extracts_history():
+    # Feature: upload the Spotify zip directly; the server extracts the streaming-history entries itself
+    import io
+    import json
+    import zipfile
+
+    music = [{"ts": "2024-08-01T09:00:00Z", "master_metadata_album_artist_name": "Duster", "ms_played": 210000}]
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("Spotify Extended Streaming History/Streaming_History_Audio_2024_1.json", json.dumps(music))
+        z.writestr("Follow.json", "{}")  # a real export also has files that aren't listening history
+    r = client.post("/api/upload", data={"files": (io.BytesIO(buf.getvalue()), "my_spotify_data.zip")},
+                     content_type="multipart/form-data")
+    assert r.get_json() == {"added": 1}, r.get_json()
+
+
+def feature_heatmap_local_time():
+    # Feature: "When you listen" now reflects the viewer's local time, not UTC
+    from datetime import datetime
+
+    ts = "2024-07-15T23:30:00Z"  # near midnight UTC, so most timezones land on a different local weekday/hour
+    deep_cuts.store.add_plays([{"ts": ts, "master_metadata_album_artist_name": "Mogwai", "ms_played": 300000}])
+    t = client.get("/api/trends").get_json()
+    local = datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone()
+    assert t["heatmap"][local.weekday()][local.hour] > 0, (t["heatmap"], local.weekday(), local.hour)
+
+
+def feature_settings_validates_keys():
+    # Feature: a save with a bad Last.fm/Anthropic key is rejected instead of silently "saved"
+    orig_lastfm, orig_claude, orig_save_env = deep_cuts.lastfm.check, deep_cuts.claude_mode.check, deep_cuts.save_env
+    deep_cuts.lastfm.check = lambda k: False  # simulate Last.fm rejecting the key
+    deep_cuts.claude_mode.check = lambda k: True  # simulate Anthropic accepting it
+    deep_cuts.save_env = lambda updates: None  # don't touch the real .env file for a test key
+    saved_env = os.environ.get("ANTHROPIC_API_KEY")
+    try:
+        r = client.post("/api/settings", json={"lastfm_api_key": "bad-key", "anthropic_api_key": "good-key"},
+                         headers={"Origin": "http://localhost"})
+        body = r.get_json()
+        assert body["saved"] == ["ANTHROPIC_API_KEY"], body
+        assert "lastfm_api_key" in body["errors"] and "Last.fm" in body["errors"]["lastfm_api_key"], body
+        assert os.environ.get("LASTFM_API_KEY") != "bad-key"
+        assert os.environ.get("ANTHROPIC_API_KEY") == "good-key"
+    finally:
+        deep_cuts.lastfm.check, deep_cuts.claude_mode.check, deep_cuts.save_env = orig_lastfm, orig_claude, orig_save_env
+        if saved_env is None:
+            os.environ.pop("ANTHROPIC_API_KEY", None)
+        else:
+            os.environ["ANTHROPIC_API_KEY"] = saved_env
+
+
 if __name__ == "__main__":
     for name, check in list(globals().items()):
-        if name.startswith("issue_"):
+        if name.startswith(("issue_", "feature_")):
             check()
     print("ok")

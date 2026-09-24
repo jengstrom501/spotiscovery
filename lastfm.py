@@ -31,6 +31,26 @@ def _call(method, **params):
     return data
 
 
+def check(key):
+    """Live validity check for a candidate API key, bypassing the cache (a cached Radiohead lookup made under
+    a previous key would otherwise mask a bad new one). True/False on a definitive answer, None if Last.fm
+    couldn't be reached (a save shouldn't be blocked by a network hiccup)."""
+    old = os.environ.get("LASTFM_API_KEY")
+    os.environ["LASTFM_API_KEY"] = key
+    try:
+        _call("artist.getInfo", artist="Radiohead")
+        return True
+    except RuntimeError as e:
+        return False if "Invalid API key" in str(e) else None
+    except requests.RequestException:
+        return None
+    finally:
+        if old is None:
+            os.environ.pop("LASTFM_API_KEY", None)
+        else:
+            os.environ["LASTFM_API_KEY"] = old
+
+
 def _key(*parts):
     return "lastfm:" + ":".join(store.norm(str(p)) for p in parts)
 

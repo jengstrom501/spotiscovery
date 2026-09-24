@@ -2,6 +2,7 @@
 import json
 import os
 import traceback
+import zipfile
 from urllib.parse import quote
 
 from flask import Flask, jsonify, redirect, request, send_from_directory
@@ -27,6 +28,10 @@ app = Flask(__name__, static_folder=os.path.join(HERE, "static"))
 
 SETTINGS_FIELDS = {"spotify_client_id": "SPOTIFY_CLIENT_ID", "lastfm_api_key": "LASTFM_API_KEY",
                    "anthropic_api_key": "ANTHROPIC_API_KEY"}
+# Spotify's Client ID has no lightweight "is this real" endpoint (checking it needs a full OAuth round trip),
+# so only the two keys below get a live check before they're saved.
+VALIDATOR_MODULES = {"LASTFM_API_KEY": lastfm, "ANTHROPIC_API_KEY": claude_mode}
+SERVICE_NAMES = {"LASTFM_API_KEY": "Last.fm", "ANTHROPIC_API_KEY": "Anthropic"}
 LOCAL_HOSTS = ("127.0.0.1", "localhost")
 
 
@@ -80,17 +85,25 @@ def status():
 
 @app.post("/api/settings")
 def settings():
+    """Save API keys. Last.fm and Anthropic keys are checked live first, so a rejected key never silently
+    looks "saved"; a key a checker can't reach (offline, package missing) still saves, since we can't tell
+    it's actually bad."""
     data = request.get_json(silent=True) or {}  # JSON content type only, so a plain-text form post is ignored
-    updates = {}
+    updates, errors = {}, {}
     for json_key, env_key in SETTINGS_FIELDS.items():
         v = (data.get(json_key) or "").strip()
-        if v:
-            updates[env_key] = v
+        if not v:
+            continue
+        mod = VALIDATOR_MODULES.get(env_key)
+        if mod and mod.check(v) is False:
+            errors[json_key] = f"{SERVICE_NAMES[env_key]} says this key is invalid."
+            continue
+        updates[env_key] = v
     if updates:
         for k, v in updates.items():
             os.environ[k] = v
         save_env(updates)
-    return jsonify(saved=list(updates))
+    return jsonify(saved=list(updates), errors=errors)
 
 
 def back_with_error(msg):
@@ -125,25 +138,58 @@ def sync():
                    saved=len(snap["saved_artists"]))
 
 
+def _is_history_json(name):
+    """A JSON entry worth importing from the Spotify zip (StreamingHistory_music_* or Streaming_History_Audio_*).
+    The zip also has files we don't care about (Follow.json, Payments.json, ...), filtered out here."""
+    base = os.path.basename(name).lower()
+    return base.endswith(".json") and (base.startswith("streaminghistory_music") or base.startswith("streaming_history_audio"))
+
+
 @app.post("/api/upload")
 def upload():
-    """Import every file that has music plays and name the ones skipped, so one video-history file or stray
-    zip in a multi-select doesn't abort the rest."""
+    """Import every file that has music plays: a JSON export directly, or the zip Spotify emails you (its
+    StreamingHistory_music_*.json / Streaming_History_Audio_*.json entries, extracted here). Names what's
+    skipped and why, so one video-history file or an empty zip doesn't abort the rest."""
     added, found, skipped = 0, 0, []
-    for f in request.files.getlist("files"):
-        try:
-            data = json.load(f.stream)
-        except ValueError:  # JSONDecodeError and UnicodeDecodeError (a zip, a PDF, a corrupt file)
-            skipped.append(f"{f.filename} ({'still zipped' if f.filename.lower().endswith('.zip') else 'not JSON'})")
-            continue
+
+    def ingest(name, data):
+        nonlocal added, found
         if not store.parse_plays(data):
-            skipped.append(f"{f.filename} (no music plays)")
-            continue
+            skipped.append(f"{name} (no music plays)")
+            return
         found += 1
         added += store.add_plays(data)
+
+    for f in request.files.getlist("files"):
+        if f.filename.lower().endswith(".zip"):
+            try:
+                zf = zipfile.ZipFile(f.stream)
+            except zipfile.BadZipFile:
+                skipped.append(f"{f.filename} (not a valid zip)")
+                continue
+            entries = [i for i in zf.infolist() if _is_history_json(i.filename)]
+            if not entries:
+                skipped.append(f"{f.filename} (no streaming history files inside)")
+                continue
+            for info in entries:
+                name = os.path.basename(info.filename)
+                try:
+                    data = json.load(zf.open(info))
+                except ValueError:
+                    skipped.append(f"{name} (not JSON)")
+                    continue
+                ingest(name, data)
+            continue
+        try:
+            data = json.load(f.stream)
+        except ValueError:  # JSONDecodeError and UnicodeDecodeError (a corrupt or non-JSON file)
+            skipped.append(f"{f.filename} (not JSON)")
+            continue
+        ingest(f.filename, data)
+
     if not found:
-        return jsonify(error=f"Nothing to import from {', '.join(skipped)}. Unzip what Spotify sends and upload the "
-                             "StreamingHistory_music_*.json or Streaming_History_Audio_*.json files."), 400
+        return jsonify(error=f"Nothing to import from {', '.join(skipped)}. Upload the zip Spotify sends you, or "
+                             "the StreamingHistory_music_*.json / Streaming_History_Audio_*.json files inside it."), 400
     return jsonify(added=added, **({"skipped": skipped} if skipped else {}))
 
 

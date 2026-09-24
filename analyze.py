@@ -38,7 +38,8 @@ def trends(lf, drift_artists=150, drift_tags=8):
         monthly[mo] += hrs
         first_seen.setdefault(artist, mo)
         per_year[ts[:4]][artist] += hrs
-        heat[d.weekday()][d.hour] += hrs  # ponytail: UTC, the export has no timezone per play
+        local = d.astimezone()  # only the heatmap wants the viewer's clock; this app is one browser on one machine
+        heat[local.weekday()][local.hour] += hrs
         by_quarter[f"{d.year}-Q{(d.month - 1) // 3 + 1}"][artist] += hrs
 
     months = sorted(monthly)
