@@ -25,6 +25,30 @@ def issue_001_cross_site_writes_blocked():
     assert client.post("/api/settings", json={}, headers={"Origin": "http://localhost"}).status_code == 200
 
 
+def issue_007_standard_export_imports():
+    # Regression: ISSUE-007 - StreamingHistory_music_*.json (account data export) imported 0 plays
+    import io
+    import json
+
+    def upload(name, records):
+        body = {"files": (io.BytesIO(json.dumps(records).encode()), name)}
+        return client.post("/api/upload", data=body, content_type="multipart/form-data")
+
+    standard = [
+        {"endTime": "2024-03-01 14:15", "artistName": "Low", "trackName": "Words", "msPlayed": 215000},
+        {"endTime": "2024-03-01 14:20", "artistName": "Low", "trackName": "Skip", "msPlayed": 4000},  # under 30s
+        {"endTime": "not a time", "artistName": "Low", "trackName": "Bad row", "msPlayed": 215000},
+    ]
+    extended = [
+        {"ts": "2024-04-02T20:15:00Z", "master_metadata_album_artist_name": "Duster", "ms_played": 240000},
+        {"ts": "2024-04-02T21:00:00Z", "master_metadata_album_artist_name": None, "ms_played": 900000},  # podcast
+        {"ts": "2024-04-04T24:15:00Z", "master_metadata_album_artist_name": "Duster", "ms_played": 240000},  # hour 24
+    ]
+    assert upload("StreamingHistory_music_0.json", standard).get_json() == {"added": 1}
+    assert upload("Streaming_History_Audio_2024.json", extended).get_json() == {"added": 1}
+    assert deep_cuts.store.parse_plays(standard)[0][0] == "2024-03-01T14:15:00Z"
+
+
 if __name__ == "__main__":
     for name, check in list(globals().items()):
         if name.startswith("issue_"):
