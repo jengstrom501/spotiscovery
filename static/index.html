@@ -356,10 +356,13 @@ async function api(path, opts) {
 }
 function say(id, msg, err) { $(id).textContent = msg || ""; $(id).classList.toggle("err", !!err); }
 // clearOnError: a container holding loading skeletons, emptied if the request fails.
-async function run(statusId, msg, fn, clearOnError) {
+// btn: the control that started it, disabled until the request finishes so it can't fire twice.
+async function run(statusId, msg, fn, clearOnError, btn) {
+  if (btn) btn.disabled = true;
   say(statusId, msg);
   try { await fn(); if ($(statusId).textContent === msg) say(statusId, ""); }  // keep a result message fn wrote
   catch (e) { say(statusId, e.message, true); if (clearOnError) clearOnError.innerHTML = ""; }
+  finally { if (btn) btn.disabled = false; }
 }
 // Fades a render's top-level children in with a small stagger, once, as the content lands.
 function reveal(container) {
@@ -412,21 +415,21 @@ $("save-keys").onclick = () => run("keys-status", "Saving…", async () => {
   $("key-spotify").value = $("key-lastfm").value = $("key-claude").value = "";
   await loadStatus();
   say("keys-status", r.saved.length ? `Saved ${r.saved.length} key${r.saved.length > 1 ? "s" : ""}.` : "Nothing to save. Fill in a field first.");
-});
+}, null, $("save-keys"));
 $("connect").onclick = (e) => {
   if (!state.spotify_app) { e.preventDefault(); say("setup-status", "Add your Spotify Client ID first.", true); }
 };
 $("sync").onclick = () => run("setup-status", "Syncing Spotify…", async () => {
   const r = await api("/api/sync", { method: "POST" });
   await loadStatus(); say("setup-status", `Synced ${r.followed} followed and ${r.saved} saved-track artists.`);
-});
+}, null, $("sync"));
 $("files").onchange = (e) => run("setup-status", "Importing…", async () => {
   const fd = new FormData();
   for (const f of e.target.files) fd.append("files", f);
   const r = await api("/api/upload", { method: "POST", body: fd });
   await loadStatus(); loaded.trends = false; showTab("trends");
   say("setup-status", `Added ${r.added.toLocaleString()} plays.`);
-});
+}, null, $("files"));
 
 // ---- tabs
 const loaded = {};
@@ -532,7 +535,7 @@ $("run-similar").onclick = () => {
     out.innerHTML = recs.length ? recs.map((r) => card(r)).join("")
       : `<div class="empty" style="grid-column: 1 / -1">Nothing new at this setting. Try moving the slider.</div>`;
     reveal(out);
-  }, out);
+  }, out, $("run-similar"));
 };
 
 // ---- blends
@@ -556,15 +559,16 @@ async function loadBlends() {
     reveal(out);
   }, out);
 }
-$("run-blend").onclick = () => {
+$("run-blend").onclick = async () => {
   const out = $("manual-body");
   out.innerHTML = `<div class="blend"><span class="sk-h"></span><div class="hscroll">${skeleton(5)}</div></div>`;
-  run("blends-status", "Blending…", async () => {
+  await run("blends-status", "Blending…", async () => {
     const d = await api("/api/blend?tags=" + encodeURIComponent([...picked].join(",")));
     out.innerHTML = `<div class="blend"><h3>${blendTitle(d.tags)}</h3>` +
       (d.artists.length ? `<div class="hscroll">${d.artists.map((a) => card(a)).join("")}</div>` : `<div class="empty">No overlap you haven't heard. Try another mix.</div>`) + `</div>`;
     reveal(out);
-  }, out);
+  }, out, $("run-blend"));
+  $("run-blend").disabled = picked.size < 2;
 };
 $("run-claude").onclick = () => {
   const out = $("claude-body");
@@ -577,7 +581,7 @@ $("run-claude").onclick = () => {
       <p>${esc(b.why)}${b.dropped ? ` (${b.dropped} dropped: unverified or already known.)` : ""}</p>
       <div class="hscroll">${b.artists.map((a) => card(a, `<p class="why">${esc(a.note)}</p>`)).join("")}</div></div>`).join("");
     reveal(out);
-  }, out);
+  }, out, $("run-claude"));
 };
 
 loadStatus().then(() => showTab("trends")).catch((e) => { setSetup(true); say("setup-status", e.message, true); });
