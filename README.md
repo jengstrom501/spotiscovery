@@ -44,7 +44,7 @@ The Spotify API only shows your top artists and your last 50 plays. For real tre
 - **Account data**: your last year of plays, usually within 5 days. Upload the `StreamingHistory_music_*.json` files.
 - **Extended streaming history**: your whole history with more detail, up to 30 days. Upload the `Streaming_History_Audio_*.json` files.
 
-Unzip what Spotify sends and upload the JSON files in the app. Plays under 30 seconds are ignored.
+Upload the zip Spotify sends you directly, or unzip it yourself and upload the JSON files. Plays under 30 seconds are ignored.
 
 ### 4. Claude (optional)
 
