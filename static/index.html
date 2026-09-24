@@ -501,7 +501,7 @@ async function loadTrends() {
     const first = t.months[0].slice(0, 4), last = t.months[t.months.length - 1].slice(0, 4);
     body.innerHTML = `
       <div>
-        <p class="lead"><b>${t.total_hours.toLocaleString()}</b> hours with <b>${t.artists.toLocaleString()}</b> artists over <b>${t.months.length}</b> months.</p>
+        <p class="lead">${t.total_hours > 0 ? `<b>${t.total_hours.toLocaleString()}</b> hours` : "Under an hour"} with <b>${t.artists.toLocaleString()}</b> artists over <b>${t.months.length}</b> month${t.months.length === 1 ? "" : "s"}.</p>
         <p class="lead-sub">${t.plays.toLocaleString()} plays of 30 seconds or more, ${first}${first === last ? "" : " to " + last}.</p>
       </div>
       <div class="split">
