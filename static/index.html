@@ -282,8 +282,8 @@
           </div>
           <div class="side-step">
             <h3>Import full history</h3>
-            <p>On your <a href="https://www.spotify.com/account/privacy/" target="_blank" rel="noopener">Spotify privacy page</a>, request <b>Account data</b> (your last year, within about 5 days) or <b>Extended streaming history</b> (everything, up to 30 days). Unzip it and upload the <span class="mono">StreamingHistory_music_*.json</span> or <span class="mono">Streaming_History_Audio_*.json</span> files.</p>
-            <input type="file" id="files" accept=".json" multiple aria-label="Streaming history JSON files">
+            <p>On your <a href="https://www.spotify.com/account/privacy/" target="_blank" rel="noopener">Spotify privacy page</a>, request <b>Account data</b> (your last year, within about 5 days) or <b>Extended streaming history</b> (everything, up to 30 days). Upload the zip Spotify sends you, or unzip it yourself and upload the <span class="mono">StreamingHistory_music_*.json</span> / <span class="mono">Streaming_History_Audio_*.json</span> files.</p>
+            <input type="file" id="files" accept=".json,.zip" multiple aria-label="Streaming history JSON or zip files">
             <p class="help" id="plays-info" style="margin-top:10px"></p>
           </div>
         </div>
@@ -514,7 +514,7 @@ async function loadTrends() {
       ${t.drift ? `<div class="block"><h2>Taste drift</h2><p class="dim">Share of your listening by tag, per quarter, from the tags of your top artists.</p>
         <div class="chart-box tall"><canvas id="c-drift" role="img" aria-label="Tag share per quarter"></canvas></div></div>`
         : t.drift_note ? `<div class="block"><h2>Taste drift</h2><p class="dim">${esc(t.drift_note)}</p></div>` : ""}
-      <div class="block"><h2>When you listen</h2><p class="dim">Hours by weekday and hour, in UTC.</p>
+      <div class="block"><h2>When you listen</h2><p class="dim">Hours by weekday and hour, local time.</p>
         <div class="heat">${t.heatmap.map((row, d) => `<span class="lab">${days[d]}</span>` + row.map((h, hr) =>
           `<div title="${days[d]} ${hr}:00, ${h} h" style="background: rgba(191,227,90,${(0.04 + 0.96 * h / max).toFixed(2)})"></div>`).join("")).join("")}
           <span></span>${Array.from({ length: 24 }, (_, i) => `<span class="lab">${i % 6 ? "" : i}</span>`).join("")}
