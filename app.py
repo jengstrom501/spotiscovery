@@ -25,6 +25,18 @@ app = Flask(__name__, static_folder=os.path.join(HERE, "static"))
 
 SETTINGS_FIELDS = {"spotify_client_id": "SPOTIFY_CLIENT_ID", "lastfm_api_key": "LASTFM_API_KEY",
                    "anthropic_api_key": "ANTHROPIC_API_KEY"}
+LOCAL_HOSTS = ("127.0.0.1", "localhost")
+
+
+@app.before_request
+def local_only():
+    """Any web page can send requests to 127.0.0.1. Refuse a foreign Host (DNS rebinding) and writes whose Origin
+    isn't this app (cross-site requests). Clients that send no Origin, like curl, are still allowed."""
+    if request.host.rsplit(":", 1)[0] not in LOCAL_HOSTS:
+        return jsonify(error="Unknown host"), 403
+    origin = request.headers.get("Origin")
+    if request.method != "GET" and origin and origin != request.host_url.rstrip("/"):
+        return jsonify(error="Cross-site request blocked"), 403
 
 
 def save_env(updates):
@@ -64,7 +76,7 @@ def status():
 
 @app.post("/api/settings")
 def settings():
-    data = request.get_json(force=True) or {}
+    data = request.get_json(silent=True) or {}  # JSON content type only, so a plain-text form post is ignored
     updates = {}
     for json_key, env_key in SETTINGS_FIELDS.items():
         v = (data.get(json_key) or "").strip()
