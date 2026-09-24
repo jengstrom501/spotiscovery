@@ -4,6 +4,7 @@ import os
 import traceback
 
 from flask import Flask, jsonify, redirect, request, send_from_directory
+from werkzeug.exceptions import HTTPException
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -55,6 +56,8 @@ def save_env(updates):
 
 @app.errorhandler(Exception)
 def on_error(e):
+    if isinstance(e, HTTPException):  # 404, 405...: keep the real status, no traceback
+        return jsonify(error=e.description), e.code
     traceback.print_exc()
     return jsonify(error=str(e)), 500
 
