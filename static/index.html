@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deep Cuts</title>
+<link rel="preload" href="/static/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  @font-face { font-family: "Geist"; src: url("/static/fonts/Geist-Variable.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+  @font-face { font-family: "Geist Mono"; src: url("/static/fonts/GeistMono-Variable.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+
+  :root {
+    color-scheme: dark;
+    --bg: #0E0E0C; --surface: #171715; --surface-2: #1F1F1C; --raise: #282824;
+    --line: #2A2A26; --line-soft: #1E1E1B;
+    --fg: #ECE9E2; --fg-dim: #A09B90; --fg-faint: #5E5A53;
+    --accent: #BFE35A; --accent-hover: #CDEB72; --accent-ink: #12140A; --accent-soft: rgba(191,227,90,.12);
+    --danger: #E58A7A;
+    /* Radius rule: cards 14px, controls (buttons, inputs) 8px, tags and status pills fully round. */
+    --r-card: 14px; --r-ctl: 8px;
+    --sans: "Geist", system-ui, sans-serif;
+    --mono: "Geist Mono", ui-monospace, monospace;
+    --ease: cubic-bezier(.16, 1, .3, 1);
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 var(--sans); -webkit-font-smoothing: antialiased; }
+  main { overflow-x: clip; }
+  a { color: var(--accent); text-underline-offset: 3px; }
+  h1, h2, h3, p { margin: 0; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+  .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .dim { color: var(--fg-dim); }
+  .small { font-size: 13px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* ---- controls */
+  button, .btn {
+    font: 500 14px var(--sans); color: var(--fg); background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: var(--r-ctl); padding: 9px 16px; cursor: pointer; text-decoration: none; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 8px;
+    transition: transform .2s var(--ease), background .2s ease, border-color .2s ease, color .2s ease;
+  }
+  button:hover, .btn:hover { border-color: #45453E; }
+  button:active, .btn:active { transform: scale(.98); }
+  .primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  button:disabled, .btn[aria-disabled=true] { opacity: .4; cursor: not-allowed; transform: none; }
+  button:focus-visible, .btn:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  input[type=text], input[type=password] {
+    width: 100%; font: 14px var(--mono); color: var(--fg); background: var(--bg);
+    border: 1px solid var(--line); border-radius: var(--r-ctl); padding: 10px 12px; transition: border-color .2s ease;
+  }
+  input::placeholder { color: var(--fg-dim); }
+  input[type=text]:focus, input[type=password]:focus { border-color: var(--accent); }
+  input[type=range] { accent-color: var(--accent); width: 220px; max-width: 100%; }
+  input[type=file] { color: var(--fg-dim); font: 13px var(--sans); max-width: 100%; }
+  input[type=file]::file-selector-button {
+    font: 500 14px var(--sans); color: var(--fg); background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: var(--r-ctl); padding: 9px 16px; margin-right: 12px; cursor: pointer;
+  }
+  .status { color: var(--fg-dim); font-size: 13px; min-height: 20px; }
+  .status.err { color: var(--danger); }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+
+  /* ---- top bar */
+  .top { position: sticky; top: 0; z-index: 10; background: var(--bg); border-bottom: 1px solid var(--line); }
+  .top .wrap { display: flex; align-items: center; gap: 32px; height: 64px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; font-size: 17px; letter-spacing: -.02em; white-space: nowrap; }
+  .brand .disc { width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(circle, var(--bg) 0 17%, var(--accent) 18% 100%); }
+  nav.tabs { display: flex; height: 100%; }
+  nav.tabs button {
+    height: 100%; background: none; border: 0; border-radius: 0; padding: 0 14px; color: var(--fg-dim);
+    font-size: 14px; position: relative; transform: none;
+  }
+  nav.tabs button:hover { color: var(--fg); }
+  nav.tabs button[aria-selected="true"] { color: var(--fg); }
+  nav.tabs button[aria-selected="true"]::after { content: ""; position: absolute; left: 14px; right: 14px; bottom: -1px; height: 2px; background: var(--accent); }
+  .top-right { margin-left: auto; display: flex; align-items: center; gap: 18px; }
+  .states { display: flex; gap: 14px; font-size: 13px; color: var(--fg-dim); }
+  .st { display: inline-flex; align-items: center; gap: 7px; }
+  .st::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--fg-faint); }
+  .st.on::before { background: var(--accent); }
+  #setup-toggle { padding: 7px 14px; }
+
+  /* ---- intro */
+  .intro { padding-top: 56px; padding-bottom: 36px; }
+  .intro h1 { font-size: clamp(30px, 4.4vw, 54px); font-weight: 600; letter-spacing: -.035em; line-height: 1.05; }
+  .intro p { margin-top: 14px; max-width: 56ch; color: var(--fg-dim); font-size: 16px; }
+
+  /* ---- setup */
+  .setup-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); padding: 28px; margin-bottom: 40px; }
+  .setup-grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 40px; }
+  .setup-card h2 { font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
+  .setup-card h3 { font-size: 15px; font-weight: 600; }
+  .field { display: grid; gap: 6px; margin-top: 18px; }
+  .field label { font-size: 13px; font-weight: 500; }
+  .help { font-size: 12.5px; color: var(--fg-dim); }
+  .side-step + .side-step { border-top: 1px solid var(--line); margin-top: 22px; padding-top: 22px; }
+  .side-step p { color: var(--fg-dim); font-size: 13.5px; margin: 6px 0 14px; }
+  .setup-grid > div:last-child { border-left: 1px solid var(--line); padding-left: 40px; }
+
+  /* ---- blocks (open sections, divided by hairlines instead of boxes) */
+  .tab { padding-bottom: 96px; animation: fadein .4s var(--ease); }
+  @keyframes fadein { from { opacity: 0; transform: translateY(6px); } }
+  .block { border-top: 1px solid var(--line); padding-top: 22px; margin-top: 44px; min-width: 0; }
+  .block.first { margin-top: 0; }
+  .block h2 { font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+  .block > p.dim { font-size: 13.5px; margin-top: 4px; }
+  .split { display: grid; grid-template-columns: 1.7fr 1fr; gap: 40px; }
+  .split > .block { margin-top: 44px; }
+  .chart-box { position: relative; height: 250px; margin-top: 18px; }
+  .chart-box.tall { height: 320px; }
+
+  .lead { font-size: clamp(22px, 2.7vw, 34px); font-weight: 500; letter-spacing: -.025em; line-height: 1.25; max-width: 30ch; }
+  .lead b { color: var(--accent); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .lead-sub { margin-top: 10px; color: var(--fg-dim); font-size: 14px; }
+
+  .heat { display: grid; grid-template-columns: 38px repeat(24, minmax(0, 1fr)); gap: 3px; margin-top: 18px;
+          font: 11px var(--mono); color: var(--fg-dim); }
+  .heat div { height: 24px; border-radius: 3px; }
+  .heat .lab { align-self: center; }
+
+  .years { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(190px, 1fr); gap: 32px; overflow-x: auto;
+           scroll-snap-type: x mandatory; margin-top: 18px; padding-bottom: 10px; }
+  .years > div { scroll-snap-align: start; }
+  .years b { font: 600 13px var(--mono); color: var(--fg-dim); }
+  .years ol { margin: 10px 0 0; padding-left: 20px; font-size: 14px; }
+  .years li { padding: 3px 0; }
+  .years li span { color: var(--fg-dim); font-size: 12px; margin-left: 4px; }
+
+  /* ---- recommendation cards (album-tile shaped) */
+  .toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px;
+             padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface); }
+  .range { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--fg-dim); }
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); grid-auto-flow: dense; margin-top: 20px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); overflow: hidden;
+          display: flex; flex-direction: column; min-width: 0;
+          transition: transform .35s var(--ease), border-color .25s ease; }
+  .card:hover { transform: translateY(-3px); border-color: #45453E; }
+  .card .art { display: block; aspect-ratio: 1; overflow: hidden; background: var(--surface-2); text-decoration: none; }
+  .card .art img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .6s var(--ease); }
+  .card:hover .art img { transform: scale(1.04); }
+  .card .ph { width: 100%; height: 100%; display: grid; place-items: center; font-size: 56px; font-weight: 600;
+              letter-spacing: -.04em; color: var(--fg-faint); }
+  .card .body { padding: 12px 14px 14px; display: grid; gap: 6px; }
+  .card a.name { color: var(--fg); font-weight: 600; text-decoration: none; letter-spacing: -.01em; line-height: 1.3; }
+  .card a.name:hover { color: var(--accent); }
+  .card .meta { font-size: 12px; color: var(--fg-dim); }
+  .card .why { font-size: 12.5px; color: var(--fg-dim); line-height: 1.45; }
+  @media (min-width: 640px) {
+    .grid.feature > .card:first-child { grid-column: span 2; grid-row: span 2; }
+    .grid.feature > .card:first-child .art { aspect-ratio: auto; flex: 1; min-height: 240px; }
+    .grid.feature > .card:first-child a.name { font-size: 22px; letter-spacing: -.02em; }
+    .grid.feature > .card:first-child .ph { font-size: 120px; }
+  }
+
+  .hscroll { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(170px, 190px); gap: 16px; overflow-x: auto;
+             scroll-snap-type: x mandatory; padding: 4px 2px 12px; margin-top: 14px; }
+  .hscroll > * { scroll-snap-align: start; }
+  .hscroll, .years { scrollbar-width: thin; scrollbar-color: var(--raise) transparent; }
+
+  .tag { display: inline-block; font: 11.5px var(--mono); padding: 2px 9px; margin: 0 4px 4px 0; border-radius: 99px;
+         background: var(--surface-2); color: var(--fg-dim); border: 1px solid transparent; }
+  .tag-pick { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .tag-pick .tag { font-size: 13px; padding: 6px 14px; margin: 0; cursor: pointer; border-color: var(--line); background: var(--bg); color: var(--fg); }
+  .tag-pick .tag:hover { border-color: var(--accent); transform: none; }
+  .tag-pick .tag[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .blend { margin-top: 28px; min-width: 0; }
+  .blend h3 { font-size: 18px; font-weight: 600; letter-spacing: -.02em; }
+  .blend h3 .x { color: var(--accent); font-weight: 400; margin: 0 4px; }
+  .blend > p { margin-top: 6px; max-width: 70ch; font-size: 14px; color: var(--fg-dim); }
+  .claude-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; }
+  .claude-head p { max-width: 60ch; }
+
+  .empty { color: var(--fg-dim); padding: 40px 24px; text-align: center; border: 1px dashed var(--line); border-radius: var(--r-card); margin-top: 20px; }
+  .empty button { margin-top: 14px; }
+
+  /* ---- loading skeletons shaped like the final cards */
+  .sk .art, .sk i, .sk-h { background: linear-gradient(90deg, var(--surface-2) 0%, var(--raise) 50%, var(--surface-2) 100%);
+                           background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
+  .sk i { display: block; height: 10px; border-radius: 4px; }
+  .sk i + i { width: 60%; }
+  .sk-h { display: block; width: 220px; height: 18px; border-radius: 4px; }
+  .sk:hover { transform: none; }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+
+  footer p { border-top: 1px solid var(--line); padding: 24px 0 40px; font-size: 13px; color: var(--fg-dim); }
+  footer a { color: var(--fg-dim); }
+
+  .reveal { opacity: 0; transform: translateY(10px); transition: opacity .5s var(--ease), transform .5s var(--ease); }
+  .reveal.show { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .tab { animation: none; }
+    .reveal { transition: none; opacity: 1; transform: none; }
+    .sk .art, .sk i, .sk-h { animation: none; }
+    .card, .card .art img, button, .btn { transition: none; }
+  }
+
+  @media (max-width: 900px) {
+    .split, .setup-grid { grid-template-columns: 1fr; gap: 0; }
+    .setup-grid > div:last-child { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); margin-top: 28px; padding-top: 24px; }
+    .states { display: none; }
+  }
+  @media (max-width: 640px) {
+    .wrap { padding: 0 16px; }
+    .top .wrap { flex-wrap: wrap; height: auto; gap: 0; padding-top: 12px; }
+    .brand { order: 1; }
+    .top-right { order: 2; }
+    nav.tabs { order: 3; width: 100%; height: 46px; margin: 4px -14px 0; overflow-x: auto; }
+    .intro { padding-top: 36px; padding-bottom: 28px; }
+    .setup-card { padding: 20px; }
+    .heat { grid-template-columns: 30px repeat(24, minmax(0, 1fr)); gap: 2px; font-size: 10px; }
+    .heat div { height: 16px; }
+    .claude-head { flex-direction: column; }
+    .toolbar { flex-direction: column; align-items: stretch; }
+    .toolbar .primary { justify-content: center; }
+    .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><span class="disc" aria-hidden="true"></span>Deep Cuts</div>
+    <nav class="tabs" role="tablist" aria-label="Views">
+      <button role="tab" aria-selected="true" data-tab="trends">Trends</button>
+      <button role="tab" aria-selected="false" data-tab="similar">Similar sound</button>
+      <button role="tab" aria-selected="false" data-tab="blends">Blends</button>
+    </nav>
+    <div class="top-right">
+      <div class="states" id="chips"></div>
+      <button id="setup-toggle" aria-expanded="false" aria-controls="setup">Setup</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap intro">
+    <h1>Find the bands you walked past.</h1>
+    <p>Your Spotify history, how your taste has moved, and artists that sound like what you already play.</p>
+  </div>
+
+  <section class="wrap" id="setup" hidden>
+    <div class="setup-card">
+      <div class="setup-grid">
+        <div>
+          <h2>Keys</h2>
+          <p class="help" style="margin-top:6px">Saved to <span class="mono">.env</span> on this machine and only sent to the service they belong to. Leave a field blank to keep what is saved.</p>
+          <div class="field">
+            <label for="key-spotify">Spotify Client ID</label>
+            <input type="password" id="key-spotify" autocomplete="off" placeholder="Not set">
+            <p class="help">Create an app in the <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">Spotify developer dashboard</a> with redirect URI <span class="mono">http://127.0.0.1:8888/callback</span>.</p>
+          </div>
+          <div class="field">
+            <label for="key-lastfm">Last.fm API key</label>
+            <input type="password" id="key-lastfm" autocomplete="off" placeholder="Not set">
+            <p class="help">Free, takes a minute: <a href="https://www.last.fm/api/account/create" target="_blank" rel="noopener">create a Last.fm API account</a>.</p>
+          </div>
+          <div class="field">
+            <label for="key-claude">Anthropic API key (optional)</label>
+            <input type="password" id="key-claude" autocomplete="off" placeholder="Not set">
+            <p class="help">Turns on Ask Claude. <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Get a key</a>.</p>
+          </div>
+          <div class="row" style="margin-top:20px">
+            <button class="primary" id="save-keys">Save keys</button>
+            <p class="status" id="keys-status" role="status"></p>
+          </div>
+        </div>
+        <div>
+          <div class="side-step">
+            <h3>Connect Spotify</h3>
+            <p>Top artists, recent plays, follows and saved tracks. Anything you already know is left out of the picks.</p>
+            <div class="row">
+              <a class="btn primary" href="/login" id="connect">Connect Spotify</a>
+              <button id="sync" hidden>Re-sync</button>
+            </div>
+          </div>
+          <div class="side-step">
+            <h3>Import full history</h3>
+            <p>Request <b>Extended streaming history</b> on your <a href="https://www.spotify.com/account/privacy/" target="_blank" rel="noopener">Spotify privacy page</a>. It arrives in a few days. Upload the <span class="mono">Streaming_History_Audio_*.json</span> files.</p>
+            <input type="file" id="files" accept=".json" multiple aria-label="Streaming history JSON files">
+            <p class="help" id="plays-info" style="margin-top:10px"></p>
+          </div>
+        </div>
+      </div>
+      <p class="status" id="setup-status" role="status" style="margin-top:18px"></p>
+    </div>
+  </section>
+
+  <section class="wrap tab" id="trends">
+    <p class="status" id="trends-status" role="status"></p>
+    <div id="trends-body"></div>
+  </section>
+
+  <section class="wrap tab" id="similar" hidden>
+    <div class="toolbar">
+      <div class="range">
+        <label for="obscurity">Mainstream</label>
+        <input type="range" id="obscurity" min="0" max="1" step="0.25" value="0.5">
+        <label for="obscurity">Deep cuts</label>
+      </div>
+      <button class="primary" id="run-similar">Find artists</button>
+    </div>
+    <p class="status" id="similar-status" role="status" style="margin-top:12px"></p>
+    <div class="grid feature" id="similar-body">
+      <div class="empty" style="grid-column: 1 / -1">Set how far from the mainstream you want to go, then find artists.</div>
+    </div>
+  </section>
+
+  <section class="wrap tab" id="blends" hidden>
+    <div class="block first">
+      <h2>Mix your own</h2>
+      <p class="dim">Pick two or three of your tags to find artists that sit in all of them.</p>
+      <div id="tag-pick" class="tag-pick"></div>
+      <div class="row" style="margin-top:16px"><button class="primary" id="run-blend" disabled>Blend selected</button></div>
+      <div id="manual-body"></div>
+    </div>
+    <div class="block">
+      <div class="claude-head">
+        <div>
+          <h2>Ask Claude</h2>
+          <p class="dim small" style="margin-top:4px">Claude reads your listening profile and proposes blends. Every artist it names is checked against Last.fm before it shows up here.</p>
+        </div>
+        <button id="run-claude" disabled>Ask Claude</button>
+      </div>
+      <p class="status" id="claude-status" role="status" style="margin-top:10px"></p>
+      <div id="claude-body"></div>
+    </div>
+    <div class="block">
+      <h2>From your top tags</h2>
+      <p class="status" id="blends-status" role="status" style="margin-top:4px"></p>
+      <div id="blends-body"></div>
+    </div>
+  </section>
+
+  <footer class="wrap">
+    <p>Similar artists and tags from <a href="https://www.last.fm" target="_blank" rel="noopener">Last.fm</a>. Listening history from Spotify. Runs on your machine.</p>
+  </footer>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = (n) => n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e3 ? Math.round(n / 1e3) + "k" : n;
+let state = {};
+let firstStatus = true;
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || r.statusText);
+  return data;
+}
+function say(id, msg, err) { $(id).textContent = msg || ""; $(id).classList.toggle("err", !!err); }
+// clearOnError: a container holding loading skeletons, emptied if the request fails.
+async function run(statusId, msg, fn, clearOnError) {
+  say(statusId, msg);
+  try { await fn(); say(statusId, ""); }
+  catch (e) { say(statusId, e.message, true); if (clearOnError) clearOnError.innerHTML = ""; }
+}
+// Fades a render's top-level children in with a small stagger, once, as the content lands.
+function reveal(container) {
+  [...container.children].forEach((el, i) => {
+    el.classList.add("reveal");
+    setTimeout(() => el.classList.add("show"), 30 + i * 60);
+  });
+}
+const skeleton = (n) => Array.from({ length: n }, () =>
+  `<div class="card sk" aria-hidden="true"><div class="art"></div><div class="body"><i></i><i></i></div></div>`).join("");
+
+// ---- setup + status
+function setSetup(open) {
+  $("setup").hidden = !open;
+  $("setup-toggle").setAttribute("aria-expanded", open);
+}
+$("setup-toggle").onclick = () => setSetup($("setup").hidden);
+
+async function loadStatus() {
+  state = await api("/api/status");
+  const st = (on, label) => `<span class="st ${on ? "on" : ""}">${label}<span class="sr">${on ? " ready" : " not set up"}</span></span>`;
+  $("chips").innerHTML = st(state.connected, "Spotify") + st(state.lastfm, "Last.fm") + st(state.claude, "Claude");
+  $("connect").hidden = state.connected;
+  $("sync").hidden = !state.connected;
+  $("connect").setAttribute("aria-disabled", !state.spotify_app);
+  $("run-claude").disabled = !state.claude;
+  $("key-spotify").placeholder = state.spotify_app ? "Saved" : "Not set";
+  $("key-lastfm").placeholder = state.lastfm ? "Saved" : "Not set";
+  $("key-claude").placeholder = state.claude ? "Saved" : "Not set";
+  $("plays-info").textContent = state.plays
+    ? `${state.plays.toLocaleString()} plays imported, ${state.first?.slice(0, 4)} to ${state.last?.slice(0, 4)}.` : "";
+  say("claude-status", state.claude ? "" : "Add an Anthropic key in Setup to turn this on.");
+  if (!state.spotify_app) say("setup-status", "Add your Spotify Client ID, then connect.");
+  else if (!state.lastfm) say("setup-status", "Add a Last.fm key. Similar sound and Blends need it.");
+  else say("setup-status", "");
+  const err = new URLSearchParams(location.search).get("error");
+  if (err) say("setup-status", "Spotify login failed: " + err, true);
+  if (firstStatus) {
+    firstStatus = false;
+    setSetup(!!err || !state.spotify_app || !state.lastfm || (!state.connected && !state.plays));
+  }
+}
+$("save-keys").onclick = () => run("keys-status", "Saving…", async () => {
+  const r = await api("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ spotify_client_id: $("key-spotify").value, lastfm_api_key: $("key-lastfm").value,
+                           anthropic_api_key: $("key-claude").value }) });
+  $("key-spotify").value = $("key-lastfm").value = $("key-claude").value = "";
+  await loadStatus();
+  say("keys-status", r.saved.length ? `Saved ${r.saved.length} key${r.saved.length > 1 ? "s" : ""}.` : "Nothing to save. Fill in a field first.");
+});
+$("connect").onclick = (e) => {
+  if (!state.spotify_app) { e.preventDefault(); say("setup-status", "Add your Spotify Client ID first.", true); }
+};
+$("sync").onclick = () => run("setup-status", "Syncing Spotify…", async () => {
+  const r = await api("/api/sync", { method: "POST" });
+  await loadStatus(); say("setup-status", `Synced ${r.followed} followed and ${r.saved} saved-track artists.`);
+});
+$("files").onchange = (e) => run("setup-status", "Importing…", async () => {
+  const fd = new FormData();
+  for (const f of e.target.files) fd.append("files", f);
+  const r = await api("/api/upload", { method: "POST", body: fd });
+  await loadStatus(); loaded.trends = false; showTab("trends");
+  say("setup-status", `Added ${r.added.toLocaleString()} plays.`);
+});
+
+// ---- tabs
+const loaded = {};
+function showTab(name) {
+  document.querySelectorAll("nav.tabs button").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === name));
+  document.querySelectorAll("section.tab").forEach((s) => (s.hidden = s.id !== name));
+  if (!loaded[name]) { loaded[name] = true; ({ trends: loadTrends, blends: loadBlends }[name] || (() => {}))(); }
+}
+document.querySelectorAll("nav.tabs button").forEach((b) => (b.onclick = () => showTab(b.dataset.tab)));
+
+// ---- charts (categorical palette validated with the dataviz skill: CVD dE >= 8.4, all >= 3:1 on dark surfaces)
+const SERIES = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"];
+const ACCENT = "#BFE35A";
+Chart.defaults.color = "#A09B90";
+Chart.defaults.font.family = "Geist, system-ui, sans-serif";
+Chart.defaults.font.size = 12;
+Chart.defaults.borderColor = "#2A2A26";
+Object.assign(Chart.defaults.plugins.tooltip, { backgroundColor: "#282824", titleColor: "#ECE9E2", bodyColor: "#ECE9E2",
+  padding: 10, cornerRadius: 8, displayColors: true, boxPadding: 4 });
+Chart.defaults.maintainAspectRatio = false;
+const charts = [];
+const grid = { color: "#1E1E1B" };
+function chart(id, cfg) { charts.push(new Chart($(id), cfg)); }
+
+async function loadTrends() {
+  await run("trends-status", "Crunching your history…", async () => {
+    const t = await api("/api/trends");
+    charts.splice(0).forEach((c) => c.destroy());
+    const body = $("trends-body");
+    if (!t.plays) {
+      const ranges = { short_term: "Last 4 weeks", medium_term: "Last 6 months", long_term: "Last year" };
+      const cols = Object.entries(t.api_top || {}).filter(([, v]) => v.length);
+      body.innerHTML = cols.length
+        ? `<p class="lead">Import your full history for charts.</p>
+           <p class="lead-sub">Until then, here is what the Spotify API shows as your top artists.</p>
+           <div class="block"><div class="years">${cols.map(([k, v]) => `<div><b>${ranges[k]}</b><ol>${v.slice(0, 15).map((a) => `<li>${esc(a)}</li>`).join("")}</ol></div>`).join("")}</div></div>`
+        : `<div class="empty">No listening data yet. Connect Spotify or import your streaming history to see trends.<br><button onclick="setSetup(true)">Open setup</button></div>`;
+      reveal(body);
+      return;
+    }
+    const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const max = Math.max(...t.heatmap.flat()) || 1;
+    const first = t.months[0].slice(0, 4), last = t.months[t.months.length - 1].slice(0, 4);
+    body.innerHTML = `
+      <div>
+        <p class="lead"><b>${t.total_hours.toLocaleString()}</b> hours with <b>${t.artists.toLocaleString()}</b> artists over <b>${t.months.length}</b> months.</p>
+        <p class="lead-sub">${t.plays.toLocaleString()} plays of 30 seconds or more, ${first}${first === last ? "" : " to " + last}.</p>
+      </div>
+      <div class="split">
+        <div class="block"><h2>Hours per month</h2><div class="chart-box"><canvas id="c-hours" role="img" aria-label="Listening hours per month"></canvas></div></div>
+        <div class="block"><h2>New artists per month</h2><div class="chart-box"><canvas id="c-disc" role="img" aria-label="New artists discovered per month"></canvas></div></div>
+      </div>
+      ${t.drift ? `<div class="block"><h2>Taste drift</h2><p class="dim">Share of your listening by tag, per quarter, from the tags of your top artists.</p>
+        <div class="chart-box tall"><canvas id="c-drift" role="img" aria-label="Tag share per quarter"></canvas></div></div>` : ""}
+      <div class="block"><h2>When you listen</h2><p class="dim">Hours by weekday and hour, in UTC.</p>
+        <div class="heat">${t.heatmap.map((row, d) => `<span class="lab">${days[d]}</span>` + row.map((h, hr) =>
+          `<div title="${days[d]} ${hr}:00, ${h} h" style="background: rgba(191,227,90,${(0.04 + 0.96 * h / max).toFixed(2)})"></div>`).join("")).join("")}
+          <span></span>${Array.from({ length: 24 }, (_, i) => `<span class="lab">${i % 6 ? "" : i}</span>`).join("")}
+        </div></div>
+      <div class="block"><h2>Top artists by year</h2><div class="years">${Object.entries(t.top_by_year).reverse().map(([y, list]) =>
+        `<div><b>${y}</b><ol>${list.map(([a, h]) => `<li>${esc(a)}<span class="mono">${h}h</span></li>`).join("")}</ol></div>`).join("")}</div></div>`;
+    reveal(body);
+
+    const axes = { x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkipPadding: 16 } }, y: { grid, beginAtZero: true, border: { display: false } } };
+    chart("c-hours", { type: "bar", data: { labels: t.months, datasets: [{ label: "Hours", data: t.hours,
+      backgroundColor: ACCENT, hoverBackgroundColor: "#CDEB72", borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: "bottom", maxBarThickness: 28 }] },
+      options: { scales: axes, plugins: { legend: { display: false } } } });
+    chart("c-disc", { type: "line", data: { labels: t.months, datasets: [{ label: "New artists", data: t.discovered,
+      borderColor: ACCENT, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: ACCENT }] },
+      options: { scales: axes, interaction: { mode: "index", intersect: false }, plugins: { legend: { display: false } } } });
+    if (t.drift) chart("c-drift", { type: "line", data: { labels: t.drift.quarters, datasets: t.drift.tags.map((tag, i) => ({
+        label: tag, data: t.drift.share[tag], fill: true, backgroundColor: SERIES[i] + "d9", borderColor: "#0E0E0C",
+        borderWidth: 2, pointRadius: 0, tension: 0.3 })) },
+      options: { scales: { x: axes.x, y: { ...axes.y, stacked: true, max: 100, ticks: { callback: (v) => v + "%" } } },
+        interaction: { mode: "index", intersect: false },
+        plugins: { legend: { position: "bottom", labels: { boxWidth: 10, boxHeight: 10, padding: 16 } },
+          tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${c.parsed.y}%` } } } } });
+  });
+}
+
+// ---- recommendation cards
+function card(a, extra = "") {
+  const art = a.image ? `<img src="${esc(a.image)}" alt="" loading="lazy">` : `<span class="ph" aria-hidden="true">${esc(a.name[0])}</span>`;
+  const tags = (a.tags || []).map((t) => `<span class="tag">${esc(t)}</span>`).join("");
+  return `<article class="card">
+    <a class="art" href="${esc(a.url)}" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true">${art}</a>
+    <div class="body">
+      <a class="name" href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.name)}</a>
+      ${a.listeners ? `<span class="meta mono">${fmt(a.listeners)} listeners</span>` : ""}
+      ${tags ? `<div>${tags}</div>` : ""}
+      ${a.because ? `<p class="why">Because you play ${a.because.map(esc).join(", ")}</p>` : ""}
+      ${extra}
+    </div></article>`;
+}
+const FIRST_RUN = "Asking Last.fm. The first run takes a minute or two, then it is cached.";
+const blendTitle = (tags) => tags.map(esc).join(`<span class="x">×</span>`);
+
+$("run-similar").onclick = () => {
+  const out = $("similar-body");
+  out.innerHTML = skeleton(9);
+  run("similar-status", FIRST_RUN, async () => {
+    const recs = await api("/api/similar?obscurity=" + $("obscurity").value);
+    out.innerHTML = recs.length ? recs.map((r) => card(r)).join("")
+      : `<div class="empty" style="grid-column: 1 / -1">Nothing new at this setting. Try moving the slider.</div>`;
+    reveal(out);
+  }, out);
+};
+
+// ---- blends
+const picked = new Set();
+async function loadBlends() {
+  const out = $("blends-body");
+  out.innerHTML = [1, 2].map(() => `<div class="blend"><span class="sk-h"></span><div class="hscroll">${skeleton(5)}</div></div>`).join("");
+  await run("blends-status", FIRST_RUN, async () => {
+    const d = await api("/api/blends");
+    $("tag-pick").innerHTML = d.tags.map(([t]) => `<button class="tag" aria-pressed="false" data-tag="${esc(t)}">${esc(t)}</button>`).join("");
+    $("tag-pick").querySelectorAll("button").forEach((b) => (b.onclick = () => {
+      const on = !picked.has(b.dataset.tag);
+      if (on && picked.size >= 3) return;
+      on ? picked.add(b.dataset.tag) : picked.delete(b.dataset.tag);
+      b.setAttribute("aria-pressed", on);
+      $("run-blend").disabled = picked.size < 2;
+    }));
+    out.innerHTML = d.blends.length ? d.blends.map((b) => `<div class="blend">
+        <h3>${blendTitle(b.tags)}</h3><div class="hscroll">${b.artists.map((a) => card(a)).join("")}</div></div>`).join("")
+      : `<div class="empty">No blends yet. They need a bit more listening data.</div>`;
+    reveal(out);
+  }, out);
+}
+$("run-blend").onclick = () => {
+  const out = $("manual-body");
+  out.innerHTML = `<div class="blend"><span class="sk-h"></span><div class="hscroll">${skeleton(5)}</div></div>`;
+  run("blends-status", "Blending…", async () => {
+    const d = await api("/api/blend?tags=" + encodeURIComponent([...picked].join(",")));
+    out.innerHTML = `<div class="blend"><h3>${blendTitle(d.tags)}</h3>` +
+      (d.artists.length ? `<div class="hscroll">${d.artists.map((a) => card(a)).join("")}</div>` : `<div class="empty">No overlap you haven't heard. Try another mix.</div>`) + `</div>`;
+    reveal(out);
+  }, out);
+};
+$("run-claude").onclick = () => {
+  const out = $("claude-body");
+  out.innerHTML = [1, 2].map(() => `<div class="blend"><span class="sk-h"></span><div class="hscroll">${skeleton(5)}</div></div>`).join("");
+  run("claude-status", "Claude is reading your profile. This takes 30 to 60 seconds.", async () => {
+    const blends = await api("/api/claude", { method: "POST" });
+    out.innerHTML = blends.map((b) => `<div class="blend">
+      <h3>${esc(b.name)}</h3>
+      <div style="margin-top:8px">${b.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>
+      <p>${esc(b.why)}${b.dropped ? ` (${b.dropped} dropped: unverified or already known.)` : ""}</p>
+      <div class="hscroll">${b.artists.map((a) => card(a, `<p class="why">${esc(a.note)}</p>`)).join("")}</div></div>`).join("");
+    reveal(out);
+  }, out);
+};
+
+loadStatus().then(() => showTab("trends")).catch((e) => { setSetup(true); say("setup-status", e.message, true); });
+</script>
+</body>
+</html>
