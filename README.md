@@ -39,7 +39,12 @@ Create one at [last.fm/api/account/create](https://www.last.fm/api/account/creat
 
 ### 3. Your full history (optional, strongly recommended)
 
-The Spotify API only shows your top artists and your last 50 plays. For real trends, go to your [Spotify privacy page](https://www.spotify.com/account/privacy/) and request **Extended streaming history**. Spotify emails it in a few days. Unzip it and upload the `Streaming_History_Audio_*.json` files in the app. Plays under 30 seconds are ignored.
+The Spotify API only shows your top artists and your last 50 plays. For real trends, go to your [Spotify privacy page](https://www.spotify.com/account/privacy/) and request either export:
+
+- **Account data**: your last year of plays, usually within 5 days. Upload the `StreamingHistory_music_*.json` files.
+- **Extended streaming history**: your whole history with more detail, up to 30 days. Upload the `Streaming_History_Audio_*.json` files.
+
+Unzip what Spotify sends and upload the JSON files in the app. Plays under 30 seconds are ignored.
 
 ### 4. Claude (optional)
 

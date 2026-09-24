@@ -3,6 +3,7 @@ import json
 import os
 import sqlite3
 import time
+from datetime import datetime
 
 DB_PATH = os.environ.get("DEEP_CUTS_DB", os.path.join(os.path.dirname(__file__), "deep_cuts.db"))
 
@@ -46,14 +47,32 @@ def cached(k, fetch, max_age=30 * 86400):
     return v
 
 
+def parse_plays(records):
+    """Plays from either Spotify export: extended history (Streaming_History_Audio_*.json, `ts`) or standard
+    account data (StreamingHistory_music_*.json, `endTime` in UTC to the minute).
+    Skips podcasts, plays under 30s and malformed rows (one bad timestamp would break every trend chart)."""
+    rows = []
+    for r in records if isinstance(records, list) else []:
+        if not isinstance(r, dict):
+            continue
+        if "endTime" in r:
+            artist, track, ms = r.get("artistName"), r.get("trackName"), r.get("msPlayed")
+            ts = str(r["endTime"]).replace(" ", "T") + ":00Z"
+        else:
+            artist, track, ms = r.get("master_metadata_album_artist_name"), r.get("master_metadata_track_name"), r.get("ms_played")
+            ts = str(r.get("ts"))
+        try:
+            datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        if artist and isinstance(ms, (int, float)) and ms >= 30_000:
+            rows.append((ts, artist, track, int(ms), int(bool(r.get("skipped")))))
+    return rows
+
+
 def add_plays(records):
-    """Insert Spotify Extended Streaming History records. Skips podcasts and plays under 30s."""
-    rows = [
-        (r["ts"], r["master_metadata_album_artist_name"], r.get("master_metadata_track_name"),
-         r.get("ms_played", 0), int(bool(r.get("skipped"))))
-        for r in records
-        if r.get("master_metadata_album_artist_name") and r.get("ms_played", 0) >= 30_000
-    ]
+    """Insert plays from a Spotify export file. Returns how many were new."""
+    rows = parse_plays(records)
     with db() as c:
         before = c.total_changes
         c.executemany("INSERT OR IGNORE INTO plays VALUES (?,?,?,?,?)", rows)
