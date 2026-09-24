@@ -7,7 +7,7 @@ Read STATUS.md, show state + next step, wait for direction.
 
 ## Working here
 - Run: `python app.py` → http://127.0.0.1:8888 (needs `.env`, see README)
-- Test: `python test_recommend.py`
+- Test: `python test_recommend.py && python test_regressions.py` (plain assert scripts)
 - Offline UI check: seed a throwaway DB with fake plays + pre-cached Last.fm rows
   (`DEEP_CUTS_DB=<path> LASTFM_API_KEY=dummy python app.py`)
 - Spotify only supplies history (similarity APIs are dead); similarity = Last.fm.

@@ -80,6 +80,7 @@ The first time you open Similar or Blends it takes a minute or two, because Last
 
 ```bash
 python test_recommend.py
+python test_regressions.py
 ```
 
 ## License
