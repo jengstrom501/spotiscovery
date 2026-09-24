@@ -27,7 +27,7 @@
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
   body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 var(--sans); -webkit-font-smoothing: antialiased; }
-  main { overflow-x: clip; }
+  main { overflow-x: clip; padding-top: 32px; }
   a { color: var(--accent); text-underline-offset: 3px; }
   h1, h2, h3, p { margin: 0; }
   .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
@@ -85,11 +85,6 @@
   .st.on::before { background: var(--accent); }
   #setup-toggle { padding: 7px 14px; }
 
-  /* ---- intro */
-  .intro { padding-top: 56px; padding-bottom: 36px; }
-  .intro h1 { font-size: clamp(30px, 4.4vw, 54px); font-weight: 600; letter-spacing: -.035em; line-height: 1.05; }
-  .intro p { margin-top: 14px; max-width: 56ch; color: var(--fg-dim); font-size: 16px; }
-
   /* ---- setup */
   .setup-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); padding: 28px; margin-bottom: 40px; }
   .setup-grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 40px; }
@@ -114,9 +109,8 @@
   .chart-box { position: relative; height: 250px; margin-top: 18px; }
   .chart-box.tall { height: 320px; }
 
-  .lead { font-size: clamp(22px, 2.7vw, 34px); font-weight: 500; letter-spacing: -.025em; line-height: 1.25; max-width: 30ch; }
-  .lead b { color: var(--accent); font-weight: 600; font-variant-numeric: tabular-nums; }
-  .lead-sub { margin-top: 10px; color: var(--fg-dim); font-size: 14px; }
+  .statline { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 14px; color: var(--fg-dim); }
+  .statline b { color: var(--fg); font-weight: 600; }
 
   .heat { display: grid; grid-template-columns: 38px repeat(24, minmax(0, 1fr)); gap: 3px; margin-top: 18px;
           font: 11px var(--mono); color: var(--fg-dim); }
@@ -210,7 +204,7 @@
     .brand { order: 1; }
     .top-right { order: 2; }
     nav.tabs { order: 3; width: 100%; height: 46px; margin: 4px -14px 0; overflow-x: auto; }
-    .intro { padding-top: 36px; padding-bottom: 28px; }
+    main { padding-top: 20px; }
     .setup-card { padding: 20px; }
     .heat { grid-template-columns: 30px repeat(24, minmax(0, 1fr)); gap: 2px; font-size: 10px; }
     .heat div { height: 16px; }
@@ -238,11 +232,6 @@
 </header>
 
 <main>
-  <div class="wrap intro">
-    <h1>Find the bands you walked past.</h1>
-    <p>Your Spotify history, how your taste has moved, and artists that sound like what you already play.</p>
-  </div>
-
   <section class="wrap" id="setup" hidden>
     <div class="setup-card">
       <div class="setup-grid">
@@ -493,8 +482,8 @@ async function loadTrends() {
       const ranges = { short_term: "Last 4 weeks", medium_term: "Last 6 months", long_term: "Last year" };
       const cols = Object.entries(t.api_top || {}).filter(([, v]) => v.length);
       body.innerHTML = cols.length
-        ? `<p class="lead">Import your full history for charts.</p>
-           <p class="lead-sub">Until then, here is what the Spotify API shows as your top artists.</p>
+        ? `<p>Import your full history for charts.</p>
+           <p class="dim small" style="margin-top:4px">Until then, here is what the Spotify API shows as your top artists.</p>
            <div class="block"><div class="years">${cols.map(([k, v]) => `<div><b>${ranges[k]}</b><ol>${v.slice(0, 15).map((a) => `<li>${esc(a)}</li>`).join("")}</ol></div>`).join("")}</div></div>`
         : `<div class="empty">No listening data yet. Connect Spotify or import your streaming history to see trends.<br><button onclick="setSetup(true)">Open setup</button></div>`;
       reveal(body);
@@ -502,11 +491,15 @@ async function loadTrends() {
     }
     const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     const max = Math.max(...t.heatmap.flat()) || 1;
-    const first = t.months[0].slice(0, 4), last = t.months[t.months.length - 1].slice(0, 4);
+    const from = t.months[0], to = t.months[t.months.length - 1];
     body.innerHTML = `
       <div>
-        <p class="lead">${t.total_hours > 0 ? `<b>${t.total_hours.toLocaleString()}</b> hours` : "Under an hour"} with <b>${t.artists.toLocaleString()}</b> artists over <b>${t.months.length}</b> month${t.months.length === 1 ? "" : "s"}.</p>
-        <p class="lead-sub">${t.plays.toLocaleString()} plays of 30 seconds or more, ${first}${first === last ? "" : " to " + last}.</p>
+        <div class="statline">
+          <span><b class="mono">${t.plays.toLocaleString()}</b> plays</span>
+          <span><b class="mono">${t.total_hours.toLocaleString()}</b> hours</span>
+          <span><b class="mono">${t.artists.toLocaleString()}</b> artists</span>
+        </div>
+        <p class="dim small mono" style="margin-top:6px">${from}${from === to ? "" : " → " + to}</p>
       </div>
       <div class="split">
         <div class="block"><h2>Hours per month</h2><div class="chart-box"><canvas id="c-hours" role="img" aria-label="Listening hours per month"></canvas></div></div>
