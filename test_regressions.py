@@ -49,6 +49,14 @@ def issue_007_standard_export_imports():
     assert deep_cuts.store.parse_plays(standard)[0][0] == "2024-03-01T14:15:00Z"
 
 
+def issue_002_not_found_is_404():
+    # Regression: ISSUE-002 - every 404 (favicon.ico on each page load) came back as a 500 with a traceback
+    for path in ("/favicon.ico", "/no-such-page"):
+        r = client.get(path)
+        assert r.status_code == 404, (path, r.status_code)
+        assert "error" in r.get_json()
+
+
 if __name__ == "__main__":
     for name, check in list(globals().items()):
         if name.startswith("issue_"):
