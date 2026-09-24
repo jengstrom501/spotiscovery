@@ -437,11 +437,15 @@ $("files").onchange = (e) => run("setup-status", "Importing…", async () => {
 }, null, $("files"));
 
 // ---- tabs
+const TABS = ["trends", "similar", "blends"];
+const currentTabFromUrl = () => (TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "trends");
 const loaded = {};
 const loaders = { trends: loadTrends, blends: loadBlends };
-function showTab(name) {
+// push=false on a back/forward navigation and on first load, so we don't fight the history we're responding to.
+function showTab(name, push = true) {
   document.querySelectorAll("nav.tabs button").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === name));
   document.querySelectorAll("section.tab").forEach((s) => (s.hidden = s.id !== name));
+  if (push && location.hash.slice(1) !== name) history.pushState(null, "", "#" + name);
   if (loaders[name] && !loaded[name]) {
     loaded[name] = true;
     loaders[name]().then((ok) => { if (!ok) loaded[name] = false; });  // a failed load retries on the next visit
@@ -453,6 +457,7 @@ function refreshTabs(name) {
   showTab(name || document.querySelector("nav.tabs [aria-selected=true]").dataset.tab);
 }
 document.querySelectorAll("nav.tabs button").forEach((b) => (b.onclick = () => showTab(b.dataset.tab)));
+window.onpopstate = () => showTab(currentTabFromUrl(), false);
 
 // ---- charts (categorical palette validated with the dataviz skill: CVD dE >= 8.4, all >= 3:1 on dark surfaces)
 const SERIES = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"];
@@ -600,7 +605,7 @@ $("run-claude").onclick = () => {
   }, out, $("run-claude"));
 };
 
-loadStatus().then(() => showTab("trends")).catch((e) => { setSetup(true); say("setup-status", e.message, true); });
+loadStatus().then(() => showTab(currentTabFromUrl(), false)).catch((e) => { setSetup(true); say("setup-status", e.message, true); });
 </script>
 </body>
 </html>
