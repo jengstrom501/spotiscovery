@@ -90,6 +90,21 @@ def issue_008_rejected_uploads_explained():
     assert r.get_json() == {"added": 1, "skipped": ["Streaming_History_Video_2024.json (no music plays)"]}, r.get_json()
 
 
+def issue_009_trends_without_lastfm_key():
+    # Regression: ISSUE-009 - a missing Last.fm key blanked all of Trends, not just the taste drift chart
+    deep_cuts.store.add_plays([{"ts": "2024-06-01T09:00:00Z", "master_metadata_album_artist_name": "Codeine",
+                                "ms_played": 300000}])
+    saved = os.environ.pop("LASTFM_API_KEY", None)
+    try:
+        r = client.get("/api/trends")
+        t = r.get_json()
+        assert r.status_code == 200 and t["plays"] > 0 and t["hours"], t
+        assert "drift" not in t and "Setup" in t["drift_note"], t.get("drift_note")
+    finally:
+        if saved is not None:
+            os.environ["LASTFM_API_KEY"] = saved
+
+
 if __name__ == "__main__":
     for name, check in list(globals().items()):
         if name.startswith("issue_"):
