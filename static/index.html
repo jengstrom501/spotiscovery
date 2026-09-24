@@ -248,7 +248,8 @@
       <div class="setup-grid">
         <div>
           <h2>Keys</h2>
-          <p class="help" style="margin-top:6px">Saved to <span class="mono">.env</span> on this machine and only sent to the service they belong to. Leave a field blank to keep what is saved.</p>
+          <form id="keys-form">
+          <p class="help" style="margin-top:6px">Saved to <span class="mono">.env</span> on this machine and only sent to the service they belong to. Leave a field blank to keep what is saved. Last.fm and Anthropic keys are checked live.</p>
           <div class="field">
             <label for="key-spotify">Spotify Client ID</label>
             <input type="password" id="key-spotify" autocomplete="off" placeholder="Not set">
@@ -265,9 +266,10 @@
             <p class="help">Turns on Ask Claude. <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Get a key</a>.</p>
           </div>
           <div class="row" style="margin-top:20px">
-            <button class="primary" id="save-keys">Save keys</button>
+            <button class="primary" type="submit" id="save-keys">Save keys</button>
             <p class="status" id="keys-status" role="status"></p>
           </div>
+          </form>
         </div>
         <div>
           <div class="side-step">
@@ -411,15 +413,19 @@ async function loadStatus() {
     setSetup(!!err || !state.lastfm || noData);
   }
 }
-$("save-keys").onclick = () => run("keys-status", "Saving…", async () => {
+const KEY_FIELDS = { spotify_client_id: "key-spotify", lastfm_api_key: "key-lastfm", anthropic_api_key: "key-claude" };
+$("keys-form").onsubmit = (e) => { e.preventDefault(); run("keys-status", "Saving…", async () => {
   const r = await api("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ spotify_client_id: $("key-spotify").value, lastfm_api_key: $("key-lastfm").value,
                            anthropic_api_key: $("key-claude").value }) });
-  $("key-spotify").value = $("key-lastfm").value = $("key-claude").value = "";
+  for (const k in KEY_FIELDS) if (!(k in r.errors)) $(KEY_FIELDS[k]).value = "";  // leave a rejected key in place to fix
   await loadStatus();
   if (r.saved.length) refreshTabs();
-  say("keys-status", r.saved.length ? `Saved ${r.saved.length} key${r.saved.length > 1 ? "s" : ""}.` : "Nothing to save. Fill in a field first.");
-}, null, $("save-keys"));
+  const msgs = [];
+  if (r.saved.length) msgs.push(`Saved ${r.saved.length} key${r.saved.length > 1 ? "s" : ""}.`);
+  msgs.push(...Object.values(r.errors));
+  say("keys-status", msgs.join(" ") || "Nothing to save. Fill in a field first.", Object.keys(r.errors).length > 0);
+}, null, $("save-keys")); };
 $("connect").onclick = (e) => {
   if (!state.spotify_app) { e.preventDefault(); say("setup-status", "Add your Spotify Client ID first.", true); }
 };
