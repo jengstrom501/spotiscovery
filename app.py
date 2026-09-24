@@ -113,7 +113,7 @@ def callback():
         spotify.finish_login(request.args.get("code"), request.args.get("state"))
         spotify.sync()
     except Exception as e:  # stale OAuth state, failed token exchange, network
-        traceback.print_exc()
+        print(f"spotify login failed: {e!r}")
         return back_with_error(str(e))
     return redirect("/")
 
