@@ -429,7 +429,8 @@ $("files").onchange = (e) => run("setup-status", "Importing…", async () => {
   for (const f of e.target.files) fd.append("files", f);
   const r = await api("/api/upload", { method: "POST", body: fd });
   await loadStatus(); loaded.trends = false; showTab("trends");
-  say("setup-status", `Added ${r.added.toLocaleString()} plays.`);
+  say("setup-status", (r.added ? `Added ${r.added.toLocaleString()} plays.` : "No new plays. These files were already imported.")
+    + (r.skipped ? ` Skipped ${r.skipped.join(", ")}.` : ""));
 }, null, $("files"));
 
 // ---- tabs

@@ -127,13 +127,24 @@ def sync():
 
 @app.post("/api/upload")
 def upload():
-    added = 0
+    """Import every file that has music plays and name the ones skipped, so one video-history file or stray
+    zip in a multi-select doesn't abort the rest."""
+    added, found, skipped = 0, 0, []
     for f in request.files.getlist("files"):
-        data = json.load(f.stream)
-        if not isinstance(data, list):
-            raise ValueError(f"{f.filename}: expected a JSON list of plays")
+        try:
+            data = json.load(f.stream)
+        except ValueError:  # JSONDecodeError and UnicodeDecodeError (a zip, a PDF, a corrupt file)
+            skipped.append(f"{f.filename} ({'still zipped' if f.filename.lower().endswith('.zip') else 'not JSON'})")
+            continue
+        if not store.parse_plays(data):
+            skipped.append(f"{f.filename} (no music plays)")
+            continue
+        found += 1
         added += store.add_plays(data)
-    return jsonify(added=added)
+    if not found:
+        return jsonify(error=f"Nothing to import from {', '.join(skipped)}. Unzip what Spotify sends and upload the "
+                             "StreamingHistory_music_*.json or Streaming_History_Audio_*.json files."), 400
+    return jsonify(added=added, **({"skipped": skipped} if skipped else {}))
 
 
 @app.get("/api/trends")
