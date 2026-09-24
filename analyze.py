@@ -55,7 +55,11 @@ def trends(lf, drift_artists=150, drift_tags=8):
 
     # Tag drift: each quarter's hours spread over the tags of your most-played artists.
     top = [a for a, _ in Counter({a: sum(q[a] for q in by_quarter.values()) for a in first_seen}).most_common(drift_artists)]
-    tags = {a: [(t, n) for t, n in lf.top_tags(a)[:5] if recommend.good_tag(t, a)] for a in top}
+    try:
+        tags = {a: [(t, n) for t, n in lf.top_tags(a)[:5] if recommend.good_tag(t, a)] for a in top}
+    except Exception as e:  # no or bad Last.fm key, network: only this chart needs tags, the rest still shows
+        out["drift_note"] = f"Taste drift needs Last.fm tags. {e}"
+        return out
     q_tags = {}
     for q, cnt in sorted(by_quarter.items()):
         tc = Counter()

@@ -15,7 +15,7 @@ _last = [0.0]
 def _call(method, **params):
     key = os.environ.get("LASTFM_API_KEY")
     if not key:
-        raise RuntimeError("LASTFM_API_KEY is not set (see README)")
+        raise RuntimeError("Add a Last.fm API key in Setup.")
     with _lock:  # ponytail: global throttle ~4 req/s, Last.fm's documented limit is 5/s
         wait = 0.25 - (time.time() - _last[0])
         if wait > 0:

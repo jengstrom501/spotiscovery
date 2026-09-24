@@ -485,7 +485,8 @@ async function loadTrends() {
         <div class="block"><h2>New artists per month</h2><div class="chart-box"><canvas id="c-disc" role="img" aria-label="New artists discovered per month"></canvas></div></div>
       </div>
       ${t.drift ? `<div class="block"><h2>Taste drift</h2><p class="dim">Share of your listening by tag, per quarter, from the tags of your top artists.</p>
-        <div class="chart-box tall"><canvas id="c-drift" role="img" aria-label="Tag share per quarter"></canvas></div></div>` : ""}
+        <div class="chart-box tall"><canvas id="c-drift" role="img" aria-label="Tag share per quarter"></canvas></div></div>`
+        : t.drift_note ? `<div class="block"><h2>Taste drift</h2><p class="dim">${esc(t.drift_note)}</p></div>` : ""}
       <div class="block"><h2>When you listen</h2><p class="dim">Hours by weekday and hour, in UTC.</p>
         <div class="heat">${t.heatmap.map((row, d) => `<span class="lab">${days[d]}</span>` + row.map((h, hr) =>
           `<div title="${days[d]} ${hr}:00, ${h} h" style="background: rgba(191,227,90,${(0.04 + 0.96 * h / max).toFixed(2)})"></div>`).join("")).join("")}
