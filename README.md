@@ -2,10 +2,19 @@
 
 A local web app that looks through your Spotify listening history, shows how your taste has changed, and finds **bands you've overlooked** that sound like what you already play. It can also mix sub-genres you like into new directions.
 
-- **Trends:** hours per month, new artists per month, taste drift (how your genre mix shifts each quarter), when you listen, and your top artists by year.
+- **Trends:** leads with what matters (your current era, how mainstream you are, your peak month), then:
+  - **Your eras:** your history split into stretches named for what was distinctive then, like *synthwave × chillwave, 2018 to 2021*.
+  - **Mainstream meter:** the Last.fm listener count of your typical artist over time. Watch yourself go underground.
+  - **Lost loves:** artists you once played for hours and quietly dropped.
+  - Hours and new artists per month, taste drift per tag, when you listen, and top artists by year.
 - **Similar sound:** artists close to what you play that you've never played. The *Mainstream ↔ Deep cuts* slider pushes big names down so smaller acts come through.
+- **Songs you've missed:** the best-known songs by artists you already love that aren't in your history yet.
 - **Blends:** artists at the crossover of two or three of your tags, like *shoegaze × post-hardcore*. Some blends are picked automatically; you can also choose tags yourself.
 - **Ask Claude (optional):** Claude reads your taste profile and suggests blends with reasons. Every artist it names is checked against Last.fm, so it can't hand you a band that doesn't exist.
+- **Save as playlist:** any list of picks becomes a private Spotify playlist in one click.
+- **Only music:** podcasts, audiobooks and sleep/rain sounds are found and left out of every chart. You can review them in Setup and put any back.
+
+Artists you already know are never recommended, including Last.fm's misspelled duplicates ("Travi$ Scott"), collabs with artists you play, and side projects.
 
 Everything runs on your own machine. Your data stays in a local SQLite file.
 
@@ -58,7 +67,11 @@ python app.py
 
 Open **http://127.0.0.1:8888**, save your keys, click **Connect Spotify**, and upload your history files if you have them.
 
-The first time you open Similar or Blends it takes a minute or two, because Last.fm allows about 5 requests per second. Responses are cached for 30 days, so after that it's instant.
+The first time you open Trends, Similar or Blends it takes a minute or two, because Last.fm allows about 5 requests per second. A progress bar shows how far along it is. Responses are cached for 30 days, so after that it's instant.
+
+If you connected Spotify before playlist export existed, click **Reconnect to save playlists** in Setup once.
+
+Artist photos come from Spotify, or from Deezer's public search when Spotify has none or isn't connected.
 
 ## How it works
 

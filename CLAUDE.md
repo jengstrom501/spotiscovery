@@ -19,5 +19,5 @@ warm near-black + one lime accent #BFE35A, dark only. Radius: cards 14, controls
 ## Skills & agents
 - design-taste-frontend — before visual changes (no em-dashes in UI copy)
 - claude-api — before touching claude_mode.py
-- dataviz — before changing charts
+- dataviz — before changing charts (data-storytelling for insight-first titles/headlines)
 - browse — screenshot the UI after frontend changes
