@@ -211,7 +211,15 @@ def playlist():
 
 @app.get("/api/explore")
 def explore_range():
-    return jsonify(explore.explore(request.args.get("start"), request.args.get("end")))
+    r = explore.explore(request.args.get("start"), request.args.get("end"))
+    if "summary" in r:
+        r["on_this_day"] = explore.on_this_day()
+        if os.environ.get("LASTFM_API_KEY"):
+            try:
+                explore.with_sound(r, lastfm)
+            except Exception as e:  # genres are extra; the listening stats stand on their own
+                r["sound_note"] = f"Genres need Last.fm. {e}"
+    return jsonify(r)
 
 
 @app.get("/api/artist")

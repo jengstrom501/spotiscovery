@@ -270,8 +270,9 @@ def explore(start=None, end=None, today=None):
         "data_start": data_start.isoformat(), "data_end": data_end.isoformat(),
         "summary": {**summary(rows, n_days), "new_artists": len(new_here),
                     "per_listening_day": round(total / len(daily), 2) if daily else 0},
-        "previous": prev and {"start": prev_start.isoformat(), "end": prev_end.isoformat(),
-                              **summary(prev, (prev_end - prev_start).days + 1)},
+        # None, not []: an empty list is truthy in JavaScript and the page would compare against nothing
+        "previous": {"start": prev_start.isoformat(), "end": prev_end.isoformat(),
+                     **summary(prev, (prev_end - prev_start).days + 1)} if prev else None,
         "today": {"weekday": today.weekday(), "avg": weekday_avg[today.weekday()]},
         "weekday_avg": weekday_avg,
         "hour_avg_min": [round(60 * hour_h[h] / n_days, 1) for h in range(24)],
@@ -286,8 +287,8 @@ def explore(start=None, end=None, today=None):
                      "longest": longest and {"start": (longest[0].dt - timedelta(milliseconds=longest[0].ms)).isoformat(timespec="minutes"),
                                              "minutes": round(sum(p.ms for p in longest) / 60000), "plays": len(longest),
                                              "top": _top(Counter(p.artist for p in longest), 1)[0]}},
-        "binge": best_run and {"artist": best_run[0].artist, "plays": len(best_run), "day": best_run[0].day.isoformat(),
-                               "minutes": round(sum(p.ms for p in best_run) / 60000)},
+        "binge": {"artist": best_run[0].artist, "plays": len(best_run), "day": best_run[0].day.isoformat(),
+                  "minutes": round(sum(p.ms for p in best_run) / 60000)} if best_run else None,
         "obsession": ot and {"track": ot, "artist": oa, "day": od.isoformat(), "plays": on},
         "top_artists": top_artists, "top_tracks": top_tracks, "top_albums": top_albums,
         "movers": movers, "discoveries": discoveries,
@@ -304,6 +305,50 @@ def explore(start=None, end=None, today=None):
                           for e in phones.values() if e["hours"] >= 1), key=lambda e: e["first"]),
         "countries": [{"code": k, "hours": round(h, 1), "days": len(country_days[k])} for k, h in countries.most_common(12)],
     }
+
+
+def sound(rows, lf, n_artists=40, label="Reading the genres of this period"):
+    """Genre shares for a set of plays: each top artist's hours spread over their Last.fm tags."""
+    h = Counter()
+    for p in rows:
+        h[p.artist] += p.ms / 3.6e6
+    tags = Counter()
+    for a, hrs in store.track("explore", h.most_common(n_artists), label):
+        for t, n in lf.top_tags(a)[:5]:
+            if recommend.good_tag(t, a):
+                tags[t] += hrs * n / 100
+    total = sum(tags.values()) or 1
+    return {t: 100 * v / total for t, v in tags.items()}
+
+
+def with_sound(r, lf):
+    """Adds "sound" to an explore() result: top genres, and how each moved since the previous period."""
+    c = plays()
+    cur = sound(_slice(c, date.fromisoformat(r["start"]), date.fromisoformat(r["end"])), lf)
+    prev = sound(_slice(c, date.fromisoformat(r["previous"]["start"]), date.fromisoformat(r["previous"]["end"])), lf,
+                 label="Reading the genres of the period before") if r.get("previous") else {}
+    top = sorted(cur, key=cur.get, reverse=True)[:10]
+    r["sound"] = [{"tag": t, "share": round(cur[t], 1), "was": round(prev[t], 1) if t in prev else (0 if prev else None)} for t in top]
+    return r
+
+
+def on_this_day(today=None):
+    """What you played on today's date in each earlier year."""
+    c = plays()
+    today = today or date.today()
+    out = []
+    for y in range(c["rows"][0].day.year, today.year + 1) if c["rows"] else []:
+        try:
+            d = today.replace(year=y)
+        except ValueError:  # Feb 29 in a non-leap year
+            continue
+        rows = _slice(c, d, d)
+        if rows and d < today:
+            tracks = Counter((p.track, p.artist) for p in rows if p.track)
+            (t, a), n = tracks.most_common(1)[0] if tracks else ((None, None), 0)
+            out.append({"day": d.isoformat(), "hours": round(hours(rows), 1), "plays": len(rows),
+                        "artist": _top(Counter(p.artist for p in rows), 1)[0], "track": t, "track_artist": a})
+    return out[::-1]
 
 
 def artist(name, lf=None, start=None, end=None):

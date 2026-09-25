@@ -306,6 +306,15 @@ def feature_explore_periods():
     assert ex.previous_period(date(2030, 3, 4), date(2030, 3, 10)) == (date(2030, 2, 25), date(2030, 3, 3))
     d = client.get("/api/day", query_string={"date": "2030-03-04"}).get_json()
     assert [p["track"] for p in d["plays"]] == ["One", "Two"] and d["hours"] == 2.0
+    # Regression: a range starting where the data starts has no previous period; it must be null, not []
+    assert ex.explore(r["data_start"], r["data_start"])["previous"] is None
+    otd = ex.on_this_day(date(2031, 3, 4))  # March 4 in earlier years: the 2030 plays above
+    assert otd and otd[0]["day"] == "2030-03-04" and otd[0]["artist"] == "Explore A" and otd[0]["hours"] == 2.0, otd
+
+    class LF:
+        def top_tags(self, a): return {"Explore A": [("rock", 100)], "Explore B": [("jazz", 100)]}.get(a, [])
+    snd = ex.sound(ex._slice(ex.plays(), date(2030, 3, 4), date(2030, 3, 10)), LF())
+    assert {k: round(v) for k, v in snd.items()} == {"rock": 75, "jazz": 25}, snd
     for raw, name in [("Android OS 6.0.1 API 23 (samsung, SM-G920A)", "Android"), ("iOS 12.4 (iPhone11,6)", "iPhone / iPad"),
                       ("Partner android_tv Sony", "TV"), ("Windows 10 (10.0.19041; x64)", "Windows PC"), ("not_applicable", None)]:
         assert store.device(raw) == name, (raw, store.device(raw))
