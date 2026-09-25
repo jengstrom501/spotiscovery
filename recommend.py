@@ -14,6 +14,15 @@ JUNK_TAGS = {
     "check out", "good", "amazing", "best", "music", "songs", "chill", "fun", "sexy",
 }
 DECADE = re.compile(r"^(\d0s|\d{4}s?|\d{4})$")
+# Last.fm lists collab credits ("Future & Lil Uzi Vert") as their own artists.
+COLLAB = re.compile(r"\s+(?:&|\+|x|feat\.?|ft\.?|featuring|with|and|vs\.?)\s+|\s*,\s*")
+
+
+def is_known(name, known):
+    """Known by full name, or a collab with anyone you already play.
+    ponytail: separator split, so "Earth, Wind & Fire" only drops if you play an artist called "Fire"."""
+    n = norm(name)
+    return n in known or any(p in known for p in COLLAB.split(n) if p)
 
 
 def good_tag(tag, artist=""):
@@ -53,14 +62,14 @@ def similar_recs(seeds, known, lf, obscurity=0.5, n_seeds=50, pool=150, k=40):
     score, because = defaultdict(float), defaultdict(list)
     for seed, w in top_seeds(seeds, n_seeds):
         for cand, match in lf.similar(seed):
-            if norm(cand) in known:
+            if is_known(cand, known):
                 continue
             score[cand] += w * match
             because[cand].append((w * match, seed))
     out = []
     for cand in sorted(score, key=lambda c: -score[c])[:pool]:
         inf = lf.info(cand)
-        if not inf or norm(inf["name"]) in known:  # autocorrect can map to an artist you know
+        if not inf or is_known(inf["name"], known):  # autocorrect can map to an artist you know
             continue
         penalty = (1 + inf["listeners"] / 100_000) ** obscurity
         out.append({"name": inf["name"], "score": round(score[cand] / penalty, 3),
@@ -76,7 +85,7 @@ def blend(tags, known, lf, k=12):
     lists = [lf.tag_artists(t) for t in tags]
     pos = [{norm(a): i for i, a in enumerate(lst)} for lst in lists]
     names = {norm(a): a for a in lists[0]} if lists else {}
-    shared = [n for n in names if n not in known and all(n in p for p in pos)]
+    shared = [n for n in names if not is_known(n, known) and all(n in p for p in pos)]
     shared.sort(key=lambda n: sum(p[n] for p in pos))
     return [names[n] for n in shared[:k]]
 

@@ -105,6 +105,16 @@ def issue_009_trends_without_lastfm_key():
             os.environ["LASTFM_API_KEY"] = saved
 
 
+def issue_collab_of_known_artists():
+    # Regression: "Future & Lil Uzi Vert" was recommended to someone who plays both (Last.fm lists collabs as artists)
+    known = {"future", "lil uzi vert"}
+    is_known = deep_cuts.recommend.is_known
+    for collab in ("Future & Lil Uzi Vert", "Future x Lil Uzi Vert", "Lil Uzi Vert feat. Someone", "Future, Drake"):
+        assert is_known(collab, known), collab
+    assert not is_known("Slowdive & Ride", known)  # a collab of artists you don't play still shows
+    assert not is_known("Futurecop!", known)  # no substring matches
+
+
 def feature_zip_upload_extracts_history():
     # Feature: upload the Spotify zip directly; the server extracts the streaming-history entries itself
     import io

@@ -3,7 +3,7 @@ Every artist it names is checked against Last.fm, so invented bands never reach 
 import json
 import os
 
-import store
+import recommend
 
 DEFAULT_MODEL = "claude-opus-5"
 
@@ -83,7 +83,7 @@ def suggest(profile, known, lf):
         kept = []
         for a in b["artists"]:
             inf = lf.info(a["name"])
-            if inf and store.norm(inf["name"]) not in known:
+            if inf and not recommend.is_known(inf["name"], known):
                 kept.append({**a, "name": inf["name"], "listeners": inf["listeners"]})
         b["dropped"] = len(b["artists"]) - len(kept)  # hallucinated or already known
         b["artists"] = kept
