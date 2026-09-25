@@ -3,6 +3,7 @@ import json
 import os
 import sqlite3
 import time
+import unicodedata
 from datetime import datetime
 
 DB_PATH = os.environ.get("DEEP_CUTS_DB", os.path.join(os.path.dirname(__file__), "deep_cuts.db"))
@@ -35,11 +36,14 @@ def put(k, v):
 
 
 def cached(k, fetch, max_age=30 * 86400):
-    """Return the cached value for k, or call fetch() and cache it. Only caches non-None."""
+    """Return the cached value for k, or call fetch() and cache it. Only caches non-None.
+    max_age can be a function of the cached value, so a miss can expire sooner than a hit."""
     with db() as c:
         row = c.execute("SELECT v, at FROM cache WHERE k=?", (k,)).fetchone()
-    if row and time.time() - row[1] < max_age:
-        return json.loads(row[0])
+    if row:
+        v = json.loads(row[0])
+        if time.time() - row[1] < (max_age(v) if callable(max_age) else max_age):
+            return v
     v = fetch()
     if v is not None:
         with db() as c:
@@ -81,3 +85,9 @@ def add_plays(records):
 
 def norm(name):
     return (name or "").strip().lower()
+
+
+def norm_loose(name):
+    """For matching one service's artist name to another's: "The Beyoncé" == "beyonce"."""
+    n = "".join(ch for ch in unicodedata.normalize("NFKD", norm(name)) if not unicodedata.combining(ch))
+    return n[4:] if n.startswith("the ") else n

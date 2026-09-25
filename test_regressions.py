@@ -115,6 +115,30 @@ def issue_collab_of_known_artists():
     assert not is_known("Futurecop!", known)  # no substring matches
 
 
+def feature_artist_image_pick():
+    # Feature: cards use the largest photo, match names loosely, fall back to Deezer, and skip blank placeholders
+    sp, requests = deep_cuts.spotify, deep_cuts.spotify.requests
+    orig = sp.connected, sp._get, requests.get
+    img = lambda w: {"url": f"https://i.scdn.co/{w}", "width": w}
+    results = {"artists": {"items": [
+        {"name": "Beyoncé Tribute", "images": [img(640)], "external_urls": {"spotify": "wrong"}},
+        {"name": "Beyoncé", "images": [img(640), img(320), img(160)], "external_urls": {"spotify": "right"}}]}}
+
+    class Deezer:
+        def __init__(self, data): self.data = data
+        def json(self): return {"data": self.data}
+    try:
+        sp.connected, sp._get = (lambda: True), (lambda *a, **k: results)
+        assert sp.artist_card("Beyonce") == {"image": "https://i.scdn.co/640", "url": "right"}
+        sp.connected = lambda: False  # export-only users get Deezer photos, but not Deezer's blank default
+        requests.get = lambda *a, **k: Deezer([{"name": "The Hum", "picture_xl": "https://e-cdns/artist/abc/1000x1000.jpg"}])
+        assert sp.artist_card("Hum")["image"] == "https://e-cdns/artist/abc/1000x1000.jpg"
+        requests.get = lambda *a, **k: Deezer([{"name": "Duster", "picture_xl": "https://e-cdns/artist//1000x1000.jpg"}])
+        assert sp.artist_card("Duster")["image"] is None
+    finally:
+        sp.connected, sp._get, requests.get = orig
+
+
 def feature_zip_upload_extracts_history():
     # Feature: upload the Spotify zip directly; the server extracts the streaming-history entries itself
     import io

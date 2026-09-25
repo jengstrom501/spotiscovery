@@ -114,20 +114,37 @@ def sync(max_saved=2000):
     return snap
 
 
-def artist_card(name):
-    """Image + link for a recommendation. Falls back to a search link if the API call fails."""
-    fallback = {"image": None, "url": "https://open.spotify.com/search/" + quote(name)}
-    if not connected():
-        return fallback
+def _match(items, name):
+    """The search result that is really this artist (search ranks popular near-misses first)."""
+    want = store.norm_loose(name)
+    return next((a for a in items if store.norm_loose(a["name"]) == want), None)
 
-    def fetch():
-        items = _get("/search", q=name, type="artist", limit=1)["artists"]["items"]
-        if not items or store.norm(items[0]["name"]) != store.norm(name):
-            return fallback
-        a = items[0]
-        return {"image": a["images"][-1]["url"] if a.get("images") else None,
-                "url": a["external_urls"]["spotify"]}
+
+def deezer_image(name):
+    """Fallback artist photo from Deezer's public search (no key). None if Deezer only has its blank default."""
     try:
-        return store.cached("spotify:card:" + store.norm(name), fetch)
-    except (requests.RequestException, RuntimeError):
-        return fallback
+        items = requests.get("https://api.deezer.com/search/artist", params={"q": name, "limit": 5},
+                             timeout=10).json().get("data", [])
+    except (requests.RequestException, ValueError):
+        return None
+    pic = (_match(items, name) or {}).get("picture_xl")
+    return pic if pic and "/artist//" not in pic else None  # empty image hash = Deezer's grey placeholder
+
+
+def artist_card(name):
+    """Image + link for a recommendation: Spotify's largest photo, else Deezer's, else a search link.
+    Hits are cached 30 days, misses 1 day (the artist may get a photo, or a transient error may clear)."""
+    def fetch():
+        card = {"image": None, "url": "https://open.spotify.com/search/" + quote(name)}
+        if connected():
+            try:
+                a = _match(_get("/search", q=name, type="artist", limit=5)["artists"]["items"], name)
+                if a:  # Spotify lists images widest first
+                    card = {"image": a["images"][0]["url"] if a.get("images") else None,
+                            "url": a["external_urls"]["spotify"]}
+            except (requests.RequestException, RuntimeError, KeyError):
+                pass
+        card["image"] = card["image"] or deezer_image(name)
+        return {**card, "miss": not card["image"]}
+    card = store.cached("card2:" + store.norm(name), fetch, max_age=lambda v: 86400 if v.get("miss") else 30 * 86400)
+    return {"image": card["image"], "url": card["url"]}

@@ -134,11 +134,12 @@
           display: flex; flex-direction: column; min-width: 0;
           transition: transform .35s var(--ease), border-color .25s ease; }
   .card:hover { transform: translateY(-3px); border-color: #45453E; }
-  .card .art { display: block; aspect-ratio: 1; overflow: hidden; background: var(--surface-2); text-decoration: none; }
-  .card .art img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .6s var(--ease); }
+  .card .art { display: block; position: relative; aspect-ratio: 1; overflow: hidden; background: var(--surface-2); text-decoration: none; }
+  /* The photo sits over the initials tile; a missing or broken photo removes itself and the tile shows. */
+  .card .art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .6s var(--ease); }
   .card:hover .art img { transform: scale(1.04); }
-  .card .ph { width: 100%; height: 100%; display: grid; place-items: center; font-size: 56px; font-weight: 600;
-              letter-spacing: -.04em; color: var(--fg-faint); }
+  .card .ph { width: 100%; height: 100%; display: grid; place-items: center; font-size: 48px; font-weight: 600;
+              letter-spacing: -.04em; color: rgba(236,233,226,.82); }
   .card .body { padding: 12px 14px 14px; display: grid; gap: 6px; }
   .card a.name { color: var(--fg); font-weight: 600; text-decoration: none; letter-spacing: -.01em; line-height: 1.3; }
   .card a.name:hover { color: var(--accent); }
@@ -535,8 +536,15 @@ async function loadTrends() {
 }
 
 // ---- recommendation cards
+// Initials on a gradient picked from the name, so artists without a photo still look distinct.
+function tile(name) {
+  const h = [...name].reduce((n, ch) => (n * 31 + ch.charCodeAt(0)) >>> 0, 7);
+  const a = SERIES[h % SERIES.length], b = SERIES[(h >> 4) % SERIES.length];
+  const initials = name.replace(/^the\s+/i, "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => [...w][0]).join("").toUpperCase();
+  return `<span class="ph" aria-hidden="true" style="background: linear-gradient(135deg, ${a}8c, ${b}33 70%, #0E0E0C)">${esc(initials)}</span>`;
+}
 function card(a, extra = "") {
-  const art = a.image ? `<img src="${esc(a.image)}" alt="" loading="lazy">` : `<span class="ph" aria-hidden="true">${esc(a.name[0])}</span>`;
+  const art = tile(a.name) + (a.image ? `<img src="${esc(a.image)}" alt="" loading="lazy" onerror="this.remove()">` : "");
   const tags = (a.tags || []).map((t) => `<span class="tag">${esc(t)}</span>`).join("");
   return `<article class="card">
     <a class="art" href="${esc(a.url)}" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true">${art}</a>
