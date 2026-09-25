@@ -16,7 +16,12 @@ A local web app that looks through your Spotify listening history, shows how you
   - **Taste:** genres by period and which ones rose, how varied your listening is.
   - **Where and how:** your devices, iPhones and countries.
   - **On this day:** what you played on today's date in every earlier year.
+  - **Compare:** put any two periods side by side (2019 vs 2025): every stat with its change, genres, when you listened, who stayed, who's only in one, and how much the two listening mixes overlap.
+  - **Your 3am music:** what each part of the day (late night, morning, afternoon, evening) plays far more than usual.
+  - **Albums:** the ones you play front to back versus the ones you cherry-pick a song or two from.
+  - **Travel:** a world map of where you listened, with each trip's dates and soundtrack.
   - **Artist pages:** click any artist, anywhere, for their full history with you (all-time curve, rank, streaks, first play, songs, when you play them), their big songs you've missed, and similar artists you haven't heard.
+  - **Song pages:** click any song for its life in your history: plays over the years, most in one day, skips by year, how it usually started, and what you play before and after it.
 - **Recap:** a shareable year-in-music card (Story or Square) to download, share or copy.
 - **Similar sound:** artists close to what you play that you've never played. The *Mainstream ↔ Deep cuts* slider pushes big names down so smaller acts come through.
 - **Songs you've missed:** the best-known songs by artists you already love that aren't in your history yet.

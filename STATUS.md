@@ -9,12 +9,13 @@ calendar, habits, genres by period, artist + day drill-downs), Similar sound, Bl
 2. Tune `JUNK_TAGS` and the obscurity curve against real recs
 3. Create GitHub repo, push
 
+Built 2026-09-25 (round 3): compare two periods, song pages, albums front-to-back vs cherry-picked,
+travel map with trips, music by the clock ("your 3am music").
+
 ## Ideas not built yet
-- Compare any two periods side by side (e.g. 2019 vs 2025), not just vs the previous one
-- Song pages like artist pages (play curve, first/last play, skip rate over time)
-- Album completion: which albums you play front to back vs cherry-pick
-- Listening map from conn_country with dates (trips show up as clusters)
-- "Your 3am music": what you play at unusual hours vs your baseline
+- Album pages (tracklist with which songs you play, full listens over time)
+- Genre drill-down: click a tag for its artists and share over time
+- Hide artists in bulk from Explore (focus-playlist and meditation "artists")
 
 ## Known limits
 - "Focus/study playlist" artists (Tejal Yann, Dreamscaper...) count as music; hide by hand with the x on Top artists
