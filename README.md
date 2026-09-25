@@ -7,6 +7,17 @@ A local web app that looks through your Spotify listening history, shows how you
   - **Mainstream meter:** the Last.fm listener count of your typical artist over time. Watch yourself go underground.
   - **Lost loves:** artists you once played for hours and quietly dropped.
   - Hours and new artists per month, taste drift per tag, when you listen, and top artists by year.
+- **Explore:** pick any period (last 30/90/365 days, a year, a month, one of your eras, or any dates) and everything recomputes against the period before it:
+  - **Daily averages:** what you average on today's weekday, on any day, and on days you listen, plus hour-by-hour and day-size charts.
+  - **Every day at a glance:** a calendar heatmap; click a day for a play-by-play.
+  - **Charts that zoom:** hours per day, week or month; click a bar to zoom in.
+  - **Top lists and change:** artists, songs and albums with rank changes, what's rising and fading, and which discoveries stuck.
+  - **Habits:** streaks, sessions, binges, one-day obsessions, time of day, skips, shuffle, how songs start.
+  - **Taste:** genres by period and which ones rose, how varied your listening is.
+  - **Where and how:** your devices, iPhones and countries.
+  - **On this day:** what you played on today's date in every earlier year.
+  - **Artist pages:** click any artist, anywhere, for their full history with you (all-time curve, rank, streaks, first play, songs, when you play them), their big songs you've missed, and similar artists you haven't heard.
+- **Recap:** a shareable year-in-music card (Story or Square) to download, share or copy.
 - **Similar sound:** artists close to what you play that you've never played. The *Mainstream ↔ Deep cuts* slider pushes big names down so smaller acts come through.
 - **Songs you've missed:** the best-known songs by artists you already love that aren't in your history yet.
 - **Blends:** artists at the crossover of two or three of your tags, like *shoegaze × post-hardcore*. Some blends are picked automatically; you can also choose tags yourself.
@@ -55,6 +66,8 @@ The Spotify API only shows your top artists and your last 50 plays. For real tre
 
 Upload the zip Spotify sends you directly, or unzip it yourself and upload the JSON files. Plays under 30 seconds are ignored.
 
+The extended history also carries albums, devices, countries, shuffle and how each song started, which Explore uses. If you imported before Deep Cuts stored those, upload the same zip again: existing plays get the extra fields and nothing is duplicated. (Your IP address, also in the export, is never stored.)
+
 ### 4. Claude (optional)
 
 Paste an Anthropic API key into the Setup panel (or `.env` as `ANTHROPIC_API_KEY`) to turn on **Ask Claude**. One click costs a few cents. To use a different model, set `CLAUDE_MODEL` in `.env` (no in-app field for this one).
@@ -80,7 +93,8 @@ Artist photos come from Spotify, or from Deezer's public search when Spotify has
 | `app.py` | Flask routes, Spotify login callback, and export upload |
 | `spotify.py` | PKCE login, then pulls top artists, recent plays, follows and saved-track artists |
 | `lastfm.py` | Cached Last.fm client for similar artists, tags, listener counts and tag charts |
-| `analyze.py` | Trend charts and taste drift |
+| `analyze.py` | Trend charts, taste drift, eras, the recap card's numbers |
+| `explore.py` | Any-period analytics, artist pages, day play-by-play |
 | `recommend.py` | The scoring (see below) |
 | `claude_mode.py` | Optional Claude blends, each artist checked against Last.fm |
 | `static/index.html` | The whole UI, with no build step |
