@@ -12,6 +12,8 @@ calendar, habits, genres by period, artist + day drill-downs), Similar sound, Bl
 Built 2026-09-25 (round 3): compare two periods, song pages, albums front-to-back vs cherry-picked,
 travel map with trips, music by the clock ("your 3am music").
 
+Recap is insight-driven (insights.py): ~18 kinds of finding, scored and ranked, one per kind.
+
 ## Ideas not built yet
 - Album pages (tracklist with which songs you play, full listens over time)
 - Genre drill-down: click a tag for its artists and share over time

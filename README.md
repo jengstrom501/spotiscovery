@@ -22,7 +22,7 @@ A local web app that looks through your Spotify listening history, shows how you
   - **Travel:** a world map of where you listened, with each trip's dates and soundtrack.
   - **Artist pages:** click any artist, anywhere, for their full history with you (all-time curve, rank, streaks, first play, songs, when you play them), their big songs you've missed, and similar artists you haven't heard.
   - **Song pages:** click any song for its life in your history: plays over the years, most in one day, skips by year, how it usually started, and what you play before and after it.
-- **Recap:** a shareable year-in-music card (Story or Square) to download, share or copy.
+- **Recap:** not another top-5 list. Deep Cuts looks for the most telling things in your year (a song you came back to after 7 years, an artist you drifted from, the discovery that took over, your 3am artist, your deepest cut, where your taste moved) and ranks them by how unusual they are. Pick which go on the card (Story or Square), then download, share or copy it.
 - **Similar sound:** artists close to what you play that you've never played. The *Mainstream ↔ Deep cuts* slider pushes big names down so smaller acts come through.
 - **Songs you've missed:** the best-known songs by artists you already love that aren't in your history yet.
 - **Blends:** artists at the crossover of two or three of your tags, like *shoegaze × post-hardcore*. Some blends are picked automatically; you can also choose tags yourself.
