@@ -16,7 +16,18 @@ CREATE TABLE IF NOT EXISTS plays (
 );
 CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT);
 CREATE TABLE IF NOT EXISTS cache (k TEXT PRIMARY KEY, v TEXT, at REAL);
+CREATE TABLE IF NOT EXISTS not_music (artist TEXT PRIMARY KEY, reason TEXT, hidden INTEGER);
 """
+# Every query over plays filters with this, so hidden podcasts / sleep sounds never reach a chart or a seed.
+MUSIC = "artist NOT IN (SELECT artist FROM not_music WHERE hidden = 1)"
+
+# Track titles: broad words, but only counted with long plays and for most of an artist's plays.
+NOISE = re.compile(r"\b(sleep|white noise|brown noise|pink noise|rain sounds?|thunder(storm)?s?|nature sounds|"
+                   r"ocean waves|meditation|guided|asmr|binaural|relaxation|podcast|audiobook)\b", re.I)
+# Artist names: specific phrases only, so bands like Sleep or Guided By Voices aren't caught.
+NOISE_ARTIST = re.compile(r"\b(white noise|brown noise|pink noise|rain sounds|nature sounds|sleep sounds|sleep music|"
+                          r"meditation|asmr|relax(ation|ing)?|binaural|podcast)\b", re.I)
+CHAPTER = re.compile(r"^(chapter|kapitel|cap[ií]tulo|chapitre|part|episode|ep\.?)\s*\d+", re.I)
 
 
 # Progress of long-running work, read by GET /api/progress so the page can show a real bar.
@@ -102,6 +113,34 @@ def add_plays(records):
         before = c.total_changes
         c.executemany("INSERT OR IGNORE INTO plays VALUES (?,?,?,?,?)", rows)
         return c.total_changes - before
+
+
+def flag_not_music():
+    """Hide artists that look like podcasts, audiobooks or sleep sounds sold as music tracks. Duration alone would
+    catch real ambient artists (16-min drones), so it needs a 30-min median; keywords also need plays over 5 min
+    ("Thunder" on repeat is a pop song), and title matches must cover most of the artist's plays.
+    INSERT OR IGNORE: a flag the user reversed stays reversed."""
+    plays = {}
+    with db() as c:
+        for artist, track, ms in c.execute("SELECT artist, track, ms FROM plays"):
+            plays.setdefault(artist, []).append((track or "", ms))
+    flags = []
+    for artist, rows in plays.items():
+        mid = sorted(ms for _, ms in rows)[len(rows) // 2]
+        if mid > 30 * 60_000:
+            flags.append((artist, f"Long plays (typically {round(mid / 60_000)} min): likely a podcast or sleep sounds"))
+        elif mid > 5 * 60_000 and (NOISE_ARTIST.search(artist) or sum(bool(NOISE.search(t)) for t, _ in rows) > len(rows) / 2):
+            flags.append((artist, "Sleep, noise or meditation tracks"))
+        elif sum(bool(CHAPTER.match(t)) for t, _ in rows) > len(rows) / 2:
+            flags.append((artist, "Numbered chapters or episodes: likely an audiobook or podcast"))
+    with db() as c:
+        c.executemany("INSERT OR IGNORE INTO not_music VALUES (?, ?, 1)", flags)
+
+
+def set_not_music(artist, hidden):
+    with db() as c:
+        c.execute("INSERT INTO not_music VALUES (?, 'Hidden by you', ?) "
+                  "ON CONFLICT(artist) DO UPDATE SET hidden = excluded.hidden", (artist, int(hidden)))
 
 
 def norm(name):

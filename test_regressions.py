@@ -161,6 +161,34 @@ def feature_progress_reporting():
     assert "demo" not in store.PROGRESS
 
 
+def feature_not_music_filter():
+    # Feature: podcasts, audiobooks and sleep sounds sold as music tracks are hidden from every chart and seed
+    store = deep_cuts.store
+    plays = lambda artist, track, mins, n: [{"ts": f"2025-01-{d:02d}T10:00:00Z", "master_metadata_album_artist_name": artist,
+                                             "master_metadata_track_name": f"{track} {d}", "ms_played": mins * 60_000}
+                                            for d in range(1, n + 1)]
+    store.add_plays(plays("Stardust Vibes", "Thunderstorm Sounds for Sleep", 60, 5)  # the real leak that prompted this
+                    + plays("Some Show", "Interview", 55, 3)  # podcast in a legacy mixed file
+                    + plays("An Author", "Chapter", 4, 6)  # audiobook sold as an album
+                    + plays("Chihei Hatakeyama", "Ferrum", 16, 4)  # real ambient artist with long tracks: keep
+                    + plays("Sleep", "Dopesmoker", 12, 3)  # the band Sleep: keep
+                    + plays("Imagine Dragons", "Thunder", 3, 4))  # "Thunder" on repeat is a pop song: keep
+    store.flag_not_music()
+    flagged = {r["artist"]: r for r in client.get("/api/not-music").get_json()}
+    assert set(flagged) == {"Stardust Vibes", "Some Show", "An Author"}, flagged
+    assert flagged["Stardust Vibes"]["hours"] == 5.0 and flagged["Stardust Vibes"]["hidden"]
+    artists = lambda: {a for y in client.get("/api/trends").get_json()["top_by_year"].values() for a, _ in y}
+    assert "Stardust Vibes" not in artists() and "Chihei Hatakeyama" in artists()
+    # Put back sticks, even after the next import re-runs the check
+    client.post("/api/not-music", json={"artist": "Stardust Vibes", "hidden": False})
+    store.flag_not_music()
+    assert "Stardust Vibes" in artists()
+    client.post("/api/not-music", json={"artist": "Imagine Dragons", "hidden": True})  # hide by hand
+    assert "Imagine Dragons" not in artists()
+    assert deep_cuts._is_history_json("MyData/StreamingHistory0.json")  # legacy account-data export
+    assert not deep_cuts._is_history_json("MyData/StreamingHistory_podcast_0.json")
+
+
 def feature_zip_upload_extracts_history():
     # Feature: upload the Spotify zip directly; the server extracts the streaming-history entries itself
     import io

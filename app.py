@@ -1,6 +1,7 @@
 """Deep Cuts: local web app. Run: python app.py, then open http://127.0.0.1:8888"""
 import json
 import os
+import re
 import traceback
 import zipfile
 from urllib.parse import quote
@@ -76,7 +77,7 @@ def index():
 @app.get("/api/status")
 def status():
     with store.db() as c:
-        plays = c.execute("SELECT COUNT(*), MIN(ts), MAX(ts) FROM plays").fetchone()
+        plays = c.execute(f"SELECT COUNT(*), MIN(ts), MAX(ts) FROM plays WHERE {store.MUSIC}").fetchone()
     snap = store.get("spotify") or {}
     return jsonify(spotify_app=bool(os.environ.get("SPOTIFY_CLIENT_ID")), connected=spotify.connected(),
                    lastfm=bool(os.environ.get("LASTFM_API_KEY")), claude=claude_mode.available(),
@@ -144,10 +145,12 @@ def sync():
 
 
 def _is_history_json(name):
-    """A JSON entry worth importing from the Spotify zip (StreamingHistory_music_* or Streaming_History_Audio_*).
+    """A JSON entry worth importing from the Spotify zip: StreamingHistory_music_*, Streaming_History_Audio_*, or
+    the older StreamingHistory0.json (music and podcasts mixed; flag_not_music() catches the podcasts).
     The zip also has files we don't care about (Follow.json, Payments.json, ...), filtered out here."""
     base = os.path.basename(name).lower()
-    return base.endswith(".json") and (base.startswith("streaminghistory_music") or base.startswith("streaming_history_audio"))
+    return base.endswith(".json") and (base.startswith(("streaminghistory_music", "streaming_history_audio"))
+                                       or re.fullmatch(r"streaminghistory\d+\.json", base) is not None)
 
 
 @app.post("/api/upload")
@@ -182,11 +185,30 @@ def upload():
             continue
         found += 1
         added += store.add_plays(data)
+    if added:
+        store.flag_not_music()
 
     if not found:
         return jsonify(error=f"Nothing to import from {', '.join(skipped)}. Upload the zip Spotify sends you, or "
                              "the StreamingHistory_music_*.json / Streaming_History_Audio_*.json files inside it."), 400
     return jsonify(added=added, **({"skipped": skipped} if skipped else {}))
+
+
+@app.get("/api/not-music")
+def not_music():
+    with store.db() as c:
+        rows = c.execute("SELECT n.artist, n.reason, n.hidden, COALESCE(SUM(p.ms), 0) FROM not_music n "
+                         "LEFT JOIN plays p ON p.artist = n.artist GROUP BY n.artist ORDER BY 4 DESC").fetchall()
+    return jsonify([{"artist": a, "reason": r, "hidden": bool(h), "hours": round(ms / 3.6e6, 1)} for a, r, h, ms in rows])
+
+
+@app.post("/api/not-music")
+def set_not_music():
+    data = request.get_json(silent=True) or {}
+    if not data.get("artist"):
+        return jsonify(error="Which artist?"), 400
+    store.set_not_music(data["artist"], bool(data.get("hidden")))
+    return jsonify(ok=True)
 
 
 @app.get("/api/trends")
@@ -263,5 +285,6 @@ def claude():
 
 
 if __name__ == "__main__":
+    store.flag_not_music()  # data imported before this check existed
     print("Deep Cuts on http://127.0.0.1:8888")
     app.run(host="127.0.0.1", port=8888, threaded=True)

@@ -8,14 +8,21 @@ import store
 
 def minutes_by_artist():
     with store.db() as c:
-        return {a: ms / 60000 for a, ms in c.execute("SELECT artist, SUM(ms) FROM plays GROUP BY artist")}
+        return {a: ms / 60000 for a, ms in c.execute(f"SELECT artist, SUM(ms) FROM plays WHERE {store.MUSIC} GROUP BY artist")}
+
+
+def hidden():
+    with store.db() as c:
+        return {store.norm(a) for (a,) in c.execute("SELECT artist FROM not_music WHERE hidden = 1")}
 
 
 def inputs():
     """(seeds, known) from the export plays and the Spotify snapshot, whichever you have."""
     snap = store.get("spotify", {})
     minutes = minutes_by_artist()
-    seeds = recommend.seed_weights(minutes, snap.get("top", {}))
+    skip = hidden()  # Spotify's top-artist lists can include the same sleep-sounds "artist"
+    top = {rng: [a for a in names if store.norm(a) not in skip] for rng, names in snap.get("top", {}).items()}
+    seeds = recommend.seed_weights(minutes, top)
     known = recommend.known_set([*seeds, *snap.get("followed", []), *snap.get("saved_artists", []),
                                  *(p["artist"] for p in snap.get("recent", []))])
     return seeds, known
@@ -23,7 +30,7 @@ def inputs():
 
 def trends(lf, drift_artists=150, drift_tags=8):
     with store.db() as c:
-        plays = c.execute("SELECT ts, artist, ms FROM plays ORDER BY ts").fetchall()
+        plays = c.execute(f"SELECT ts, artist, ms FROM plays WHERE {store.MUSIC} ORDER BY ts").fetchall()
     snap = store.get("spotify", {})
     out = {"plays": len(plays), "api_top": snap.get("top", {})}
     if not plays:
