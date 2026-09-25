@@ -189,6 +189,36 @@ def feature_not_music_filter():
     assert not deep_cuts._is_history_json("MyData/StreamingHistory_podcast_0.json")
 
 
+def feature_insights():
+    # Features: lost loves, mainstream meter, eras, deep cuts (pure functions, fed hand-made data)
+    from collections import Counter
+    an, rec = deep_cuts.analyze, deep_cuts.recommend
+    per_year = {"2020": Counter({"Old Fave": 40, "Steady": 20}), "2021": Counter({"Old Fave": 3, "Steady": 20})}
+    lost = an.lost_loves(per_year, Counter({"Old Fave": 0.5, "Steady": 18}), {"Old Fave": "2021-02-01T00:00:00Z", "Steady": "x"})
+    assert [r["name"] for r in lost["artists"]] == ["Old Fave"] and lost["artists"][0]["yearly"] == [40, 3], lost
+
+    q = {"2020-Q1": Counter({"Big": 10, "Small": 1}), "2020-Q2": Counter({"Big": 1, "Small": 10})}
+    m = an.mainstream(q, {"Big": 5_000_000, "Small": 20_000})
+    assert m == {"quarters": ["2020-Q1", "2020-Q2"], "listeners": [5_000_000, 20_000]}, m
+
+    tags = lambda **kw: Counter(kw)
+    q_tags = {"2020-Q1": tags(rock=10, jazz=1), "2020-Q2": tags(rock=10, jazz=1), "2020-Q3": tags(rock=10, jazz=9),
+              "2020-Q4": tags(rock=10, jazz=1), "2021-Q1": tags(rock=10, jazz=9), "2021-Q2": tags(rock=10, jazz=9)}
+    by_q = {k: Counter({"Band": 10}) for k in q_tags}
+    e = an.eras(q_tags, by_q)
+    # the lone jazz quarter (Q3 2020) is a blip inside the rock era, not an era of its own
+    assert [(x["start"], x["end"], x["tags"][0]) for x in e] == [("2020-Q1", "2020-Q4", "rock"), ("2021-Q1", "2021-Q2", "jazz")], e
+
+    class LF:
+        def top_tracks(self, a): return ["Hit", "Deep One", "Deep Two (Remastered)", "Deep Three", "Hit Two"]
+    seeds = {"band": ("Band", 5.0)}
+    played = {"band": {deep_cuts.store.track_key(t) for t in ("Hit - Live", "Hit Two", "Deep Two")}}
+    # "Hit - Live" counts as Hit, "Deep Two" as the remaster: 2 unheard is under min_unheard=3, so no entry
+    assert rec.deep_cuts(seeds, played, LF()) == []
+    d = rec.deep_cuts(seeds, played, LF(), min_unheard=2)
+    assert d[0]["tracks"] == ["Deep One", "Deep Three"] and d[0]["heard"] == 3, d
+
+
 def feature_zip_upload_extracts_history():
     # Feature: upload the Spotify zip directly; the server extracts the streaming-history entries itself
     import io

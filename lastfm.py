@@ -71,6 +71,14 @@ def top_tags(artist):
     return store.cached(_key("tags", artist), fetch)
 
 
+def top_tracks(artist, limit=20):
+    """[track name] most played on Last.fm first"""
+    def fetch():
+        d = _call("artist.getTopTracks", artist=artist, limit=limit)
+        return [t["name"] for t in d.get("toptracks", {}).get("track", [])]
+    return store.cached(_key("toptracks", artist, limit), fetch)
+
+
 def info(artist):
     """{'name', 'listeners', 'tags', 'url'} or None if Last.fm doesn't know the artist."""
     def fetch():

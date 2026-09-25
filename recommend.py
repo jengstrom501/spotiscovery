@@ -4,7 +4,7 @@ import re
 from collections import defaultdict
 from itertools import combinations
 
-from store import norm, squash, track
+from store import norm, squash, track, track_key
 
 JUNK_TAGS = {
     "seen live", "favorites", "favourites", "favorite", "favourite", "my favorites", "love",
@@ -88,6 +88,21 @@ def similar_recs(seeds, known, lf, obscurity=0.5, n_seeds=50, pool=150, k=40):
                     "because": [s for _, s in sorted(because[cand], reverse=True)[:3]]})
     out.sort(key=lambda r: -r["score"])
     return out[:k]
+
+
+def deep_cuts(seeds, played, lf, n_seeds=25, per_artist=5, min_unheard=3):
+    """Songs you've never played by artists you already love: each top artist's Last.fm top 20 minus the tracks
+    in your history. played: {norm(artist): {track_key}}. Artists with the most gaps come first."""
+    out = []
+    for name, w in track("deepcuts", top_seeds(seeds, n_seeds), "Finding songs you've missed"):
+        tops = lf.top_tracks(name)
+        heard = played.get(norm(name), set())
+        unheard = [t for t in tops if track_key(t) not in heard]
+        if tops and len(unheard) >= min_unheard:
+            out.append({"name": name, "heard": len(tops) - len(unheard), "of": len(tops),
+                        "tracks": unheard[:per_artist], "weight": w})
+    out.sort(key=lambda r: (r["heard"] / r["of"], -r["weight"]))
+    return out
 
 
 def blend(tags, known, lf, k=12):

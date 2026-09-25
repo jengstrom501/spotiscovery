@@ -213,7 +213,10 @@ def set_not_music():
 
 @app.get("/api/trends")
 def trends():
-    return jsonify(analyze.trends(lastfm))
+    t = analyze.trends(lastfm)
+    if t.get("lost"):
+        t["lost"]["artists"] = with_cards(t["lost"]["artists"])
+    return jsonify(t)
 
 
 def with_cards(names_or_recs):
@@ -238,6 +241,14 @@ def similar():
     recs = recommend.similar_recs(seeds, known, lastfm, obscurity=float(request.args.get("obscurity", 0.5)))
     store.put("last_recs", [r["name"] for r in recs])
     return jsonify(with_cards(recs))
+
+
+@app.get("/api/deep-cuts")
+def deep_cuts():
+    seeds, _ = analyze.inputs()
+    if not seeds:
+        return jsonify(error="No listening data yet. Connect Spotify or upload your export."), 400
+    return jsonify(with_cards(recommend.deep_cuts(seeds, analyze.played_tracks(), lastfm)))
 
 
 def profile():

@@ -153,6 +153,12 @@ def norm_loose(name):
     return n[4:] if n.startswith("the ") else n
 
 
+def track_key(title):
+    """Same song across versions: "Nights (Remastered)", "Nights - Live at X" and "nights" all -> "nights"."""
+    t = re.sub(r"\s*[\(\[].*?[\)\]]", "", norm_loose(title)).split(" - ")[0]
+    return re.sub(r"[\W_]+", "", t)
+
+
 def squash(name):
     """Spelling-proof key for "is this the same artist": "Travi$ Scott" == "travis scott", "Lil' Wayne" == "lil wayne"."""
     return re.sub(r"[\W_]+", "", norm_loose(name).replace("$", "s"))
