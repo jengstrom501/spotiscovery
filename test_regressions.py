@@ -256,6 +256,32 @@ def feature_playlist_export():
         sp._get, sp._post, sp.can_playlist = orig
 
 
+def issue_lastfm_autocorrect_namesake():
+    # Regression: autocorrect turned "Parcels" (821k listeners) into "The Parcels" (3k), making a big band the
+    # "deepest cut". Exact name first; autocorrect only when Last.fm doesn't know the exact name.
+    lf = deep_cuts.lastfm
+    orig, calls = lf._raw, []
+
+    def raw(method, **p):
+        calls.append(p["autocorrect"])
+        known = {"Parcels": 821143}
+        if p["autocorrect"] == 0:
+            return {"artist": {"name": p["artist"], "stats": {"listeners": known[p["artist"]]}}} if p["artist"] in known else {}
+        return {"artist": {"name": "Radiohead", "stats": {"listeners": 7_000_000}}}  # autocorrected misspelling
+    try:
+        lf._raw = raw
+        assert lf._call("artist.getInfo", artist="Parcels")["artist"]["stats"]["listeners"] == 821143 and calls == [0]
+        assert lf._call("artist.getInfo", artist="Radiohed")["artist"]["name"] == "Radiohead" and calls == [0, 0, 1]
+    finally:
+        lf._raw = orig
+
+
+def feature_recap_image_proxy():
+    # Feature: the recap card relays photos (a cross-origin image would block PNG export), but only from photo CDNs
+    for u in ("http://i.scdn.co/image/x", "https://evilscdn.co/x", "https://example.com/x", "https://127.0.0.1/x"):
+        assert client.get("/api/img", query_string={"u": u}).status_code == 400, u
+
+
 def feature_zip_upload_extracts_history():
     # Feature: upload the Spotify zip directly; the server extracts the streaming-history entries itself
     import io

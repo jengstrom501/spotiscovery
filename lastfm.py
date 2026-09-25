@@ -13,6 +13,13 @@ _last = [0.0]
 
 
 def _call(method, **params):
+    """Exact name first, autocorrect only if Last.fm doesn't know it: autocorrect can swap a real artist for a
+    namesake stub ("Parcels", 821k listeners -> "The Parcels", 3k), which poisons tags, similar and listeners."""
+    data = _raw(method, autocorrect=0, **params)
+    return data if data or "artist" not in params else _raw(method, autocorrect=1, **params)
+
+
+def _raw(method, **params):
     key = os.environ.get("LASTFM_API_KEY")
     if not key:
         raise RuntimeError("Add a Last.fm API key in Setup.")
@@ -21,8 +28,7 @@ def _call(method, **params):
         if wait > 0:
             time.sleep(wait)
         _last[0] = time.time()
-    r = requests.get(API, params={"method": method, "api_key": key, "format": "json",
-                                  "autocorrect": 1, **params}, timeout=20)
+    r = requests.get(API, params={"method": method, "api_key": key, "format": "json", **params}, timeout=20)
     data = r.json() if r.content else {}
     if "error" in data:
         if data["error"] == 6:  # artist/tag not found
@@ -52,7 +58,7 @@ def check(key):
 
 
 def _key(*parts):
-    return "lastfm:" + ":".join(store.norm(str(p)) for p in parts)
+    return "lastfm2:" + ":".join(store.norm(str(p)) for p in parts)  # 2: entries cached before exact-name lookups
 
 
 def similar(artist, limit=50):

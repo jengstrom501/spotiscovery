@@ -227,6 +227,24 @@
   .sk:hover { transform: none; }
   @keyframes shimmer { to { background-position: -200% 0; } }
 
+  /* ---- recap: controls left, the card itself right */
+  .recap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 56px; align-items: start; }
+  .recap h2 { font-size: 22px; font-weight: 600; letter-spacing: -.02em; }
+  .recap-controls > p.dim { margin-top: 8px; max-width: 46ch; }
+  .recap-controls .field { margin-top: 22px; }
+  .recap-controls .label { display: block; font-size: 13.5px; font-weight: 600; margin-bottom: 8px; }
+  .recap-controls label { display: block; font-size: 13.5px; font-weight: 600; margin-bottom: 8px; }
+  select { font: 14px var(--sans); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-ctl);
+           padding: 10px 12px; min-width: 200px; }
+  select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r-ctl); padding: 3px; gap: 3px; background: var(--bg); }
+  .seg button { border: 0; background: none; padding: 7px 16px; color: var(--fg-dim); }
+  .seg button[aria-pressed="true"] { background: var(--surface-2); color: var(--fg); }
+  .recap-controls .help { margin-top: 8px; }
+  .recap-stage { display: grid; place-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); padding: 28px; }
+  .recap-stage canvas { display: block; max-width: 100%; max-height: 74vh; width: auto; height: auto; border-radius: 10px;
+                        box-shadow: 0 24px 60px rgba(0,0,0,.45); }
+
   /* ---- progress bar under a status line (see watch()) */
   .bar { margin-top: 10px; display: grid; gap: 6px; max-width: 440px; }
   .bar[hidden] { display: none; }
@@ -251,6 +269,7 @@
 
   @media (max-width: 900px) {
     .split, .setup-grid { grid-template-columns: 1fr; gap: 0; }
+    .recap { grid-template-columns: 1fr; gap: 28px; }
     .setup-grid > div:last-child { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); margin-top: 28px; padding-top: 24px; }
     .states { display: none; }
   }
@@ -269,6 +288,7 @@
     .toolbar .primary { justify-content: center; }
     .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
     .multiples { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .recap-stage { padding: 14px; }
     .eras { flex-direction: column; gap: 14px; }
     .eras > div { border-top: 0; border-left: 3px solid var(--raise); padding: 0 0 0 12px; }
     .eras > div.now { border-left-color: var(--accent); }
@@ -283,6 +303,7 @@
       <button role="tab" aria-selected="true" data-tab="trends">Trends</button>
       <button role="tab" aria-selected="false" data-tab="similar">Similar sound</button>
       <button role="tab" aria-selected="false" data-tab="blends">Blends</button>
+      <button role="tab" aria-selected="false" data-tab="recap">Recap</button>
     </nav>
     <div class="top-right">
       <div class="states" id="chips"></div>
@@ -398,6 +419,34 @@
       <h2>From your top tags</h2>
       <p class="status" id="blends-status" role="status" style="margin-top:4px"></p>
       <div id="blends-body"></div>
+    </div>
+  </section>
+
+  <section class="wrap tab" id="recap" hidden>
+    <div class="recap">
+      <div class="recap-controls">
+        <h2>Your year on one card</h2>
+        <p class="dim">Pick a year and a shape, then download or share it. Everything on it comes from your own history.</p>
+        <div class="field">
+          <label for="recap-year">Year</label>
+          <select id="recap-year"></select>
+        </div>
+        <div class="field">
+          <span class="label" id="shape-label">Shape</span>
+          <div class="seg" role="group" aria-labelledby="shape-label">
+            <button data-shape="story" aria-pressed="true">Story</button>
+            <button data-shape="square" aria-pressed="false">Square</button>
+          </div>
+          <p class="help">Story fits Instagram and TikTok stories. Square fits posts on Instagram, X and Threads.</p>
+        </div>
+        <div class="row" style="margin-top:24px">
+          <button class="primary" id="recap-download" disabled>Download image</button>
+          <button id="recap-share" hidden disabled>Share</button>
+          <button id="recap-copy" hidden disabled>Copy</button>
+        </div>
+        <p class="status" id="recap-status" role="status" style="margin-top:12px"></p>
+      </div>
+      <div class="recap-stage"><canvas id="recap-canvas" width="1080" height="1920" role="img" aria-label="Your recap card"></canvas></div>
     </div>
   </section>
 
@@ -581,11 +630,199 @@ $("files").onchange = async (e) => {
   e.target.value = "";  // lets the same file be re-selected after a failed or duplicate import
 };
 
+// ---- recap card: drawn on a canvas so it exports as a PNG that looks the same everywhere it's posted
+const recap = { data: null, shape: "story", photo: null };
+const INK = { bg: "#0E0E0C", surface: "#171715", line: "#2A2A26", fg: "#ECE9E2", dim: "#A09B90", accent: "#BFE35A" };
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+async function loadRecap(year) {
+  return run("recap-status", "Building your card…", async () => {
+    const r = await api("/api/recap" + (year ? "?year=" + encodeURIComponent(year) : ""));
+    if (!r.top) throw new Error(r.error || "No listening data yet. Import your history in Setup.");
+    const sel = $("recap-year");
+    sel.innerHTML = [...r.years].reverse().map((y) => `<option value="${y}">${y}</option>`).join("") + `<option value="all">All time</option>`;
+    sel.value = r.year || "all";
+    recap.data = r;
+    recap.photo = await loadPhoto(r.top[0].image);
+    await drawRecap();
+    ["recap-download", "recap-share", "recap-copy"].forEach((id) => ($(id).disabled = false));
+  }, null, null, { tasks: ["recap"], idle: "Building your card" });
+}
+$("recap-year").onchange = (e) => loadRecap(e.target.value);
+document.querySelectorAll(".seg [data-shape]").forEach((b) => (b.onclick = () => {
+  recap.shape = b.dataset.shape;
+  document.querySelectorAll(".seg [data-shape]").forEach((x) => x.setAttribute("aria-pressed", x === b));
+  if (recap.data) drawRecap();
+}));
+// Photos come through /api/img: a cross-origin image would "taint" the canvas and block the PNG export.
+function loadPhoto(url) {
+  if (!url) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = () => resolve(null);
+    im.src = "/api/img?u=" + encodeURIComponent(url);
+  });
+}
+
+async function drawRecap() {
+  const r = recap.data, story = recap.shape === "story";
+  const W = 1080, H = story ? 1920 : 1080, M = story ? 72 : 64;
+  const cv = $("recap-canvas"), ctx = cv.getContext("2d");
+  cv.width = W; cv.height = H;
+  await Promise.all(["800 100px Geist", "600 40px Geist", "500 24px 'Geist Mono'"].map((f) => document.fonts.load(f)));
+
+  // Text helper: shrinks to fit maxWidth down to minSize, then truncates with an ellipsis.
+  const text = (s, x, y, { size, weight = 600, mono = false, color = INK.fg, align = "left", maxWidth = W, minSize, track = 0 }) => {
+    s = String(s ?? "");
+    const fam = mono ? "'Geist Mono', monospace" : "Geist, sans-serif";
+    let px = size;
+    const set = () => { ctx.font = `${weight} ${px}px ${fam}`; ctx.letterSpacing = `${track * px}px`; };
+    set();
+    while (minSize && px > minSize && ctx.measureText(s).width > maxWidth) { px -= 2; set(); }
+    if (ctx.measureText(s).width > maxWidth) {
+      while (s.length > 1 && ctx.measureText(s + "…").width > maxWidth) s = s.slice(0, -1);
+      s = s.trimEnd() + "…";
+    }
+    ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = "alphabetic";
+    ctx.fillText(s, x, y);
+    ctx.letterSpacing = "0px";
+    return px;
+  };
+  const panel = (x, y, w, h) => {
+    ctx.beginPath(); ctx.roundRect(x, y, w, h, 28);
+    ctx.fillStyle = INK.surface; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = INK.line; ctx.stroke();
+  };
+  const photo = (x, y, s) => {
+    ctx.save(); ctx.beginPath(); ctx.roundRect(x, y, s, s, 28); ctx.clip();
+    const im = recap.photo, name = r.top[0].name;
+    if (im) {  // cover-crop to a square
+      const k = Math.max(s / im.width, s / im.height), w = im.width * k, h = im.height * k;
+      ctx.drawImage(im, x + (s - w) / 2, y + (s - h) / 2, w, h);
+    } else {  // same initials tile the cards use
+      const hsh = [...name].reduce((n, ch) => (n * 31 + ch.charCodeAt(0)) >>> 0, 7);
+      const g = ctx.createLinearGradient(x, y, x + s, y + s);
+      g.addColorStop(0, SERIES[hsh % SERIES.length] + "8c"); g.addColorStop(.7, SERIES[(hsh >> 4) % SERIES.length] + "33"); g.addColorStop(1, INK.bg);
+      ctx.fillStyle = g; ctx.fillRect(x, y, s, s);
+      const ini = name.replace(/^the\s+/i, "").split(/\s+/).slice(0, 2).map((w) => [...w][0]).join("").toUpperCase();
+      text(ini, x + s / 2, y + s / 2 + s * .12, { size: s * .34, align: "center", color: "rgba(236,233,226,.85)", track: -.04 });
+    }
+    ctx.restore();
+  };
+
+  const allTime = !r.year;
+  const [fy, fm] = r.first_month.split("-"), [ly, lm] = r.last_month.split("-");
+  const period = allTime ? `${fy} to ${ly}` : (fm === "01" && lm === "12" ? "My year in music" : `${MONTHS[+fm - 1]} to ${MONTHS[+lm - 1]} ${ly}`);
+  const title = allTime ? "All time" : r.year;
+  const stats = [[r.hours.toLocaleString(), "hours of music"], [r.artists.toLocaleString(), "artists"]];
+  stats.push(allTime ? [r.plays.toLocaleString(), "plays"] : [r.new_artists.toLocaleString(), "new to you"]);
+  const sound = r.sound.length ? r.sound.join(" × ") : "Still forming";
+  const deep = r.deepest;
+
+  ctx.fillStyle = INK.bg; ctx.fillRect(0, 0, W, H);
+  // Brand mark, same disc as the app header
+  ctx.beginPath(); ctx.arc(M + 14, M + 22, 14, 0, 7); ctx.fillStyle = INK.accent; ctx.fill();
+  ctx.beginPath(); ctx.arc(M + 14, M + 22, 5, 0, 7); ctx.fillStyle = INK.bg; ctx.fill();
+  text("Deep Cuts", M + 42, M + 34, { size: 32, track: -.01 });
+  text(period, W - M, M + 32, { size: 24, weight: 500, mono: true, color: INK.dim, align: "right" });
+
+  const topList = (x, y, w, rowH, nameSize) => {
+    text("Top artists", x, y, { size: 22, weight: 500, mono: true, color: INK.dim });
+    r.top.forEach((a, i) => {
+      const yy = y + 56 + i * rowH;
+      text(String(i + 1), x, yy, { size: nameSize * .66, weight: 500, mono: true, color: INK.accent });
+      text(`${Math.round(a.hours)} h`, x + w, yy, { size: nameSize * .6, weight: 500, mono: true, color: INK.dim, align: "right" });
+      text(a.name, x + nameSize * 1.35, yy, { size: nameSize, maxWidth: w - nameSize * 1.35 - 110, minSize: nameSize * .75, track: -.015 });
+    });
+  };
+  const soundAndDeep = (x, y, w, h, gap) => {
+    const tw = (w - gap) / 2;
+    panel(x, y, tw, h);
+    text("Your sound", x + 32, y + 54, { size: 22, weight: 500, mono: true, color: INK.dim });
+    text(sound, x + 32, y + 112, { size: 38, color: INK.accent, maxWidth: tw - 64, minSize: 24, track: -.015 });
+    panel(x + tw + gap, y, tw, h);
+    text("Deepest cut", x + tw + gap + 32, y + 54, { size: 22, weight: 500, mono: true, color: INK.dim });
+    if (deep) {
+      text(deep.name, x + tw + gap + 32, y + 112, { size: 38, maxWidth: tw - 64, minSize: 24, track: -.015 });
+      text(`${fmt(deep.listeners)} listeners on Last.fm`, x + tw + gap + 32, y + 152, { size: 22, weight: 500, mono: true, color: INK.dim, maxWidth: tw - 64 });
+    } else text("Nothing obscure enough", x + tw + gap + 32, y + 112, { size: 30, color: INK.dim, maxWidth: tw - 64 });
+  };
+  const onRepeat = (x, y, w) => {
+    if (!r.on_repeat) return;
+    text("On repeat", x, y, { size: 22, weight: 500, mono: true, color: INK.dim });
+    const o = r.on_repeat;
+    text(`${o.track} by ${o.artist}, ${o.plays} plays`, x, y + 46, { size: 32, maxWidth: w, minSize: 22, track: -.01 });
+  };
+
+  if (story) {
+    text(title, M - 8, 520, { size: 420, weight: 800, color: INK.accent, maxWidth: W - 2 * M + 16, minSize: 180, track: -.055 });
+    const ps = 560;
+    photo(M, 590, ps);
+    stats.forEach(([n, label], i) => {
+      const y = 668 + i * 160;  // last label ends ~1030, clear of the "No. 1" caption at 1106
+      text(n, M + ps + 44, y, { size: 84, weight: 800, maxWidth: W - M - (M + ps + 44), minSize: 48, track: -.03 });
+      text(label, M + ps + 44, y + 44, { size: 26, weight: 500, color: INK.dim });
+    });
+    if (r.on_repeat) {  // beside the photo, under the stats: the song, then who and how often
+      const x = M + ps + 44, w = W - M - x, o = r.on_repeat;
+      text("On repeat", x, 1076, { size: 22, weight: 500, mono: true, color: INK.dim });
+      text(o.track, x, 1116, { size: 34, maxWidth: w, minSize: 24, track: -.01 });
+      text(`${o.artist}, ${o.plays} plays`, x, 1148, { size: 24, weight: 500, color: INK.dim, maxWidth: w });
+    }
+    topList(M, 1250, W - 2 * M, 64, 44);
+    soundAndDeep(M, 1636, W - 2 * M, 190, 24);
+  } else {
+    const col = 472, rx = M + col + 48, rw = W - M - rx;
+    text(title, M - 6, 330, { size: 250, weight: 800, color: INK.accent, maxWidth: col + 20, minSize: 120, track: -.055 });
+    photo(rx, 118, rw);
+    stats.forEach(([n, label], i) => {
+      const x = M + i * (col / stats.length);
+      text(n, x, 440, { size: 54, weight: 800, maxWidth: col / stats.length - 16, minSize: 34, track: -.03 });
+      text(label, x, 474, { size: 20, weight: 500, color: INK.dim, maxWidth: col / stats.length - 16 });
+    });
+    text("Your sound", M, 570, { size: 20, weight: 500, mono: true, color: INK.dim });
+    text(sound, M, 618, { size: 38, color: INK.accent, maxWidth: col, minSize: 24, track: -.015 });
+    text("Deepest cut", M, 700, { size: 20, weight: 500, mono: true, color: INK.dim });
+    if (deep) {
+      text(deep.name, M, 748, { size: 38, maxWidth: col, minSize: 24, track: -.015 });
+      text(`${fmt(deep.listeners)} listeners on Last.fm`, M, 786, { size: 20, weight: 500, mono: true, color: INK.dim, maxWidth: col });
+    }
+    topList(rx, 612, rw, 54, 32);
+    onRepeat(M, 850, col);
+    ctx.fillStyle = INK.line; ctx.fillRect(M, H - M - 58, W - 2 * M, 2);
+    text("Made with Deep Cuts from my listening history", M, H - M - 6, { size: 20, weight: 500, mono: true, color: INK.dim });
+  }
+}
+
+const recapBlob = () => new Promise((res) => $("recap-canvas").toBlob(res, "image/png"));
+const recapName = () => `deep-cuts-${recap.data.year || "all-time"}-${recap.shape}.png`;
+$("recap-download").onclick = async () => {
+  const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(await recapBlob()), download: recapName() });
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+// Share (phones, and Chrome/Edge on desktop) opens the system share sheet with the image attached.
+// Copy puts the PNG on the clipboard for pasting into X, Discord, iMessage and friends.
+const canShareFiles = () => navigator.canShare && navigator.canShare({ files: [new File([""], "x.png", { type: "image/png" })] });
+$("recap-share").hidden = !canShareFiles();
+$("recap-copy").hidden = !(navigator.clipboard && window.ClipboardItem);
+$("recap-share").onclick = async () => {
+  const file = new File([await recapBlob()], recapName(), { type: "image/png" });
+  try { await navigator.share({ files: [file], text: "My year in music, made with Deep Cuts" }); }
+  catch (e) { if (e.name !== "AbortError") say("recap-status", "Sharing didn't work here. Download the image instead.", true); }
+};
+$("recap-copy").onclick = async () => {
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": recapBlob() })]);
+    say("recap-status", "Copied. Paste it into a post or message.");
+  } catch { say("recap-status", "Couldn't copy here. Download the image instead.", true); }
+};
+
 // ---- tabs
-const TABS = ["trends", "similar", "blends"];
+const TABS = ["trends", "similar", "blends", "recap"];
 const currentTabFromUrl = () => (TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "trends");
 const loaded = {};
-const loaders = { trends: loadTrends, similar: loadDeepCuts, blends: loadBlends };
+const loaders = { trends: loadTrends, similar: loadDeepCuts, blends: loadBlends, recap: () => loadRecap() };
 // push=false on a back/forward navigation and on first load, so we don't fight the history we're responding to.
 function showTab(name, push = true) {
   document.querySelectorAll("nav.tabs button").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === name));

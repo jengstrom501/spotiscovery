@@ -6,6 +6,7 @@ import traceback
 import zipfile
 from urllib.parse import quote
 
+import requests
 from flask import Flask, jsonify, redirect, request, send_from_directory
 from werkzeug.exceptions import HTTPException
 
@@ -205,6 +206,33 @@ def playlist():
     if not spotify.can_playlist():
         return jsonify(error="Reconnect Spotify in Setup to allow saving playlists."), 400
     return jsonify(spotify.create_playlist(str(data.get("name") or "Deep Cuts")[:100], items))
+
+
+@app.get("/api/recap")
+def recap():
+    r = analyze.recap(lastfm, request.args.get("year") or None)  # no year: latest finished one; "all": all time
+    if r.get("top"):
+        r["top"][0].update(spotify.artist_card(r["top"][0]["name"]))  # the #1 gets the big photo
+    return jsonify(r)
+
+
+# Photo hosts the cards use. The recap image is drawn on a canvas, and a cross-origin image would taint it
+# (no PNG export), so photos are relayed through here. Allow-listed so this can't fetch arbitrary URLs.
+IMAGE_HOSTS = ("scdn.co", "spotifycdn.com", "dzcdn.net")
+
+
+@app.get("/api/img")
+def img():
+    from urllib.parse import urlparse
+    u = request.args.get("u", "")
+    p = urlparse(u)
+    host = p.hostname or ""
+    if p.scheme != "https" or not any(host == d or host.endswith("." + d) for d in IMAGE_HOSTS):  # not "evilscdn.co"
+        return jsonify(error="Image host not allowed"), 400
+    r = requests.get(u, timeout=15)
+    if not r.ok or not r.headers.get("Content-Type", "").startswith("image/"):
+        return jsonify(error="Couldn't fetch image"), 502
+    return r.content, 200, {"Content-Type": r.headers["Content-Type"], "Cache-Control": "max-age=86400"}
 
 
 @app.get("/api/not-music")

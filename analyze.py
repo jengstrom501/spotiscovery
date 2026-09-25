@@ -104,6 +104,54 @@ def trends(lf, drift_artists=150, drift_tags=8):
     return out
 
 
+def recap(lf, year=None, n_tags=40, n_deep=60, min_deep_hours=2):
+    """A shareable year in review (year=None: all time). Beyond the usual top lists: your sound (the tags
+    that carried the most of your hours) and your deepest cut (the least-known artist you really played)."""
+    with store.db() as c:
+        rows = c.execute(f"SELECT ts, artist, track, ms FROM plays WHERE {store.MUSIC} ORDER BY ts").fetchall()
+    if not rows:
+        return {"years": []}
+    per_year = Counter(ts[:4] for ts, *_ in rows)
+    years = sorted(y for y, n in per_year.items() if n >= 50)  # skip stub years with a handful of plays
+    first_year = {}
+    for ts, a, _, _ in rows:
+        first_year.setdefault(a, ts[:4])
+    if year is None:  # default: the latest finished year, like Wrapped, rather than a few months of this one
+        year = years[-2] if len(years) > 1 and years[-1] == str(datetime.now().year) else years[-1]
+    elif year == "all":
+        year = None
+    sel = [r for r in rows if year is None or r[0].startswith(year)]
+    if not sel:
+        return {"years": years, "error": f"No plays in {year}."}
+    hours, tracks = Counter(), Counter()
+    for _, a, t, ms in sel:
+        hours[a] += ms / 3.6e6
+        if t:
+            tracks[(t, a)] += 1
+    top = hours.most_common()
+    sound = Counter()
+    for a, h in store.track("recap", top[:n_tags], "Reading your sound"):
+        for t, n in lf.top_tags(a)[:5]:
+            if recommend.good_tag(t, a):
+                sound[t] += h * n / 100
+    deep = None
+    for a, h in store.track("recap", [x for x in top[:n_deep] if x[1] >= min_deep_hours], "Finding your deepest cut"):
+        inf = lf.info(a)
+        if inf and inf["listeners"] and (deep is None or inf["listeners"] < deep["listeners"]):
+            deep = {"name": a, "listeners": inf["listeners"], "hours": round(h, 1)}
+    (track, artist), plays = tracks.most_common(1)[0] if tracks else ((None, None), 0)
+    months = sorted({ts[:7] for ts, *_ in sel})
+    return {
+        "years": years, "year": year, "first_month": months[0], "last_month": months[-1],
+        "hours": round(sum(hours.values())), "plays": len(sel), "artists": len(hours),
+        "new_artists": sum(1 for a in hours if year is None or first_year[a] == year),
+        "top": [{"name": a, "hours": round(h, 1)} for a, h in top[:5]],
+        "sound": [t for t, _ in sound.most_common(2)],
+        "deepest": deep,
+        "on_repeat": track and {"track": track, "artist": artist, "plays": plays},
+    }
+
+
 def lost_loves(per_year, recent, last_played, k=12, min_peak=10):
     """Artists you once played a lot and have since dropped: a peak year of 10+ hours, before your latest year,
     and under 10% of that peak in your latest year."""
