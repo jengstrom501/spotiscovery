@@ -282,6 +282,46 @@ def feature_recap_image_proxy():
         assert client.get("/api/img", query_string={"u": u}).status_code == 400, u
 
 
+def feature_explore_periods():
+    # Feature: every stat for any date range; averages count silent days; whole months/years compare to the
+    # previous calendar months; streaks; drill-down to one day. Noon UTC keeps local days stable across timezones.
+    from datetime import date
+    ex, store = deep_cuts.explore, deep_cuts.store
+    hour = lambda day, artist, track: {"ts": f"{day}T12:00:00Z", "master_metadata_album_artist_name": artist,
+                                       "master_metadata_track_name": track, "ms_played": 3_600_000,
+                                       "reason_end": "trackdone", "platform": "iOS 12.4 (iPhone11,6)", "conn_country": "DK"}
+    store.add_plays([hour("2030-03-04", "Explore A", "One"), {**hour("2030-03-04", "Explore A", "Two"), "ts": "2030-03-04T13:30:00Z"},
+                     hour("2030-03-05", "Explore A", "One"), hour("2030-03-07", "Explore B", "Three"),
+                     hour("2030-03-20", "Explore C", "Later")])  # data runs past the range (ranges clamp at the data's end)
+    r = client.get("/api/explore", query_string={"start": "2030-03-04", "end": "2030-03-10"}).get_json()  # Mon..Sun
+    s = r["summary"]
+    assert (s["hours"], s["listening_days"], s["per_day"], s["per_listening_day"]) == (4.0, 3, 0.57, 1.33), s
+    assert r["weekday_avg"][:4] == [2.0, 1.0, 0, 1.0], r["weekday_avg"]
+    assert r["streaks"]["longest"]["days"] == 2 and r["streaks"]["longest_gap"]["days"] == 3 and r["streaks"]["current"] == 0
+    assert r["top_artists"][0]["name"] == "Explore A" and r["top_artists"][0]["hours"] == 3.0
+    assert r["countries"][0]["code"] == "DK" and r["phones"][0]["name"] == "iPhone XS Max"
+    assert r["series"]["unit"] == "day" and len(r["series"]["keys"]) == 7
+    assert ex.previous_period(date(2030, 3, 1), date(2030, 3, 31)) == (date(2030, 2, 1), date(2030, 2, 28))
+    assert ex.previous_period(date(2025, 1, 1), date(2025, 12, 31)) == (date(2024, 1, 1), date(2024, 12, 31))
+    assert ex.previous_period(date(2030, 3, 4), date(2030, 3, 10)) == (date(2030, 2, 25), date(2030, 3, 3))
+    d = client.get("/api/day", query_string={"date": "2030-03-04"}).get_json()
+    assert [p["track"] for p in d["plays"]] == ["One", "Two"] and d["hours"] == 2.0
+    for raw, name in [("Android OS 6.0.1 API 23 (samsung, SM-G920A)", "Android"), ("iOS 12.4 (iPhone11,6)", "iPhone / iPad"),
+                      ("Partner android_tv Sony", "TV"), ("Windows 10 (10.0.19041; x64)", "Windows PC"), ("not_applicable", None)]:
+        assert store.device(raw) == name, (raw, store.device(raw))
+
+
+def feature_reimport_fills_new_fields():
+    # Feature: plays imported before albums/devices were stored get them from a re-import, without duplicating
+    store = deep_cuts.store
+    base = {"ts": "2031-01-01T10:00:00Z", "master_metadata_album_artist_name": "Upgrade", "master_metadata_track_name": "Song",
+            "ms_played": 200_000}
+    assert store.add_plays([base]) == 1
+    assert store.add_plays([{**base, "master_metadata_album_album_name": "Album", "shuffle": True}]) == 0
+    with store.db() as c:
+        assert c.execute("SELECT album, shuffle FROM plays WHERE artist='Upgrade'").fetchall() == [("Album", 1)]
+
+
 def feature_zip_upload_extracts_history():
     # Feature: upload the Spotify zip directly; the server extracts the streaming-history entries itself
     import io

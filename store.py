@@ -50,9 +50,25 @@ def track(task, items, label):
         PROGRESS.pop(task, None)
 
 
+# Extra fields the extended export has (the standard one leaves them NULL). Added to older databases in place;
+# re-importing the same zip fills them in. ip_addr is deliberately never stored.
+EXTRA = {"album": "TEXT", "uri": "TEXT", "platform": "TEXT", "country": "TEXT", "reason_start": "TEXT",
+         "reason_end": "TEXT", "shuffle": "INTEGER", "offline": "INTEGER", "incognito": "INTEGER"}
+_migrated = []
+# Bumped on every write to plays / not_music, so derived data (explore.plays()) knows when to reload.
+VERSION = [0]
+
+
 def db():
     conn = sqlite3.connect(DB_PATH)
     conn.executescript(SCHEMA)
+    if not _migrated:
+        have = {r[1] for r in conn.execute("PRAGMA table_info(plays)")}
+        for col, typ in EXTRA.items():
+            if col not in have:
+                conn.execute(f"ALTER TABLE plays ADD COLUMN {col} {typ}")
+        conn.commit()
+        _migrated.append(True)
     return conn
 
 
@@ -102,17 +118,44 @@ def parse_plays(records):
         except ValueError:
             continue
         if artist and isinstance(ms, (int, float)) and ms >= 30_000:
-            rows.append((ts, artist, track, int(ms), int(bool(r.get("skipped")))))
+            flag = lambda k: None if r.get(k) is None else int(bool(r[k]))
+            rows.append((ts, artist, track, int(ms), int(bool(r.get("skipped"))),
+                         r.get("master_metadata_album_album_name"), r.get("spotify_track_uri"), r.get("platform"),
+                         r.get("conn_country"), r.get("reason_start"), r.get("reason_end"),
+                         flag("shuffle"), flag("offline"), flag("incognito_mode")))
     return rows
 
 
+COLS = "ts, artist, track, ms, skipped, " + ", ".join(EXTRA)
+
+
 def add_plays(records):
-    """Insert plays from a Spotify export file. Returns how many were new."""
+    """Insert plays from a Spotify export file. Returns how many were new. A play already stored gets any extra
+    fields it was missing, so re-importing an extended export upgrades an older database."""
     rows = parse_plays(records)
+    fill = ", ".join(f"{c} = COALESCE(excluded.{c}, {c})" for c in EXTRA)
     with db() as c:
-        before = c.total_changes
-        c.executemany("INSERT OR IGNORE INTO plays VALUES (?,?,?,?,?)", rows)
-        return c.total_changes - before
+        before = c.execute("SELECT COUNT(*) FROM plays").fetchone()[0]
+        c.executemany(f"INSERT INTO plays ({COLS}) VALUES ({', '.join('?' * (5 + len(EXTRA)))}) "
+                      f"ON CONFLICT(ts, artist, track) DO UPDATE SET {fill}", rows)
+        VERSION[0] += 1
+        return c.execute("SELECT COUNT(*) FROM plays").fetchone()[0] - before
+
+
+# Device names from Spotify's raw platform strings ("Android OS 6.0.1 API 23 (samsung, SM-G920A)" -> "Android").
+# Order matters: TV and car builds of Android are checked before plain Android.
+DEVICES = [("Car", r"android_auto|carplay|\bcar\b|automotive"), ("TV", r"(^|[^a-z])tv([^a-z]|$)|tizen|webos|roku|firetv"),  # [^a-z]: "android_tv" (\b sees _ as a letter)
+           ("Game console", r"playstation|ps4|ps5|xbox"), ("Smart speaker", r"sonos|amazon|echo|alexa|google_home|nest|homepod"),
+           ("Chromecast", r"cast"), ("iPhone / iPad", r"\bios\b|iphone|ipad"), ("Android", r"android"),
+           ("Windows PC", r"windows"), ("Mac", r"os x|osx|macos|mac os"), ("Web player", r"web.?player|webplayer|browser"),
+           ("Linux", r"linux")]
+
+
+def device(platform):
+    p = (platform or "").lower()
+    if not p or p in ("not_applicable", "unknown"):
+        return None
+    return next((name for name, pat in DEVICES if re.search(pat, p)), p.split()[0].title())
 
 
 def flag_not_music():
@@ -135,12 +178,14 @@ def flag_not_music():
             flags.append((artist, "Numbered chapters or episodes: likely an audiobook or podcast"))
     with db() as c:
         c.executemany("INSERT OR IGNORE INTO not_music VALUES (?, ?, 1)", flags)
+    VERSION[0] += 1
 
 
 def set_not_music(artist, hidden):
     with db() as c:
         c.execute("INSERT INTO not_music VALUES (?, 'Hidden by you', ?) "
                   "ON CONFLICT(artist) DO UPDATE SET hidden = excluded.hidden", (artist, int(hidden)))
+    VERSION[0] += 1
 
 
 def norm(name):

@@ -21,6 +21,7 @@ if os.path.exists(os.path.join(HERE, ".env")):
 
 import analyze  # noqa: E402  (after .env so modules see the keys)
 import claude_mode  # noqa: E402
+import explore  # noqa: E402
 import lastfm  # noqa: E402
 import recommend  # noqa: E402
 import spotify  # noqa: E402
@@ -206,6 +207,27 @@ def playlist():
     if not spotify.can_playlist():
         return jsonify(error="Reconnect Spotify in Setup to allow saving playlists."), 400
     return jsonify(spotify.create_playlist(str(data.get("name") or "Deep Cuts")[:100], items))
+
+
+@app.get("/api/explore")
+def explore_range():
+    return jsonify(explore.explore(request.args.get("start"), request.args.get("end")))
+
+
+@app.get("/api/artist")
+def artist_page():
+    name = request.args.get("name", "")
+    r = explore.artist(name, lastfm if os.environ.get("LASTFM_API_KEY") else None,
+                       request.args.get("start"), request.args.get("end"))
+    if "error" not in r:
+        r.update(spotify.artist_card(name))
+        r["similar"] = with_cards(r.get("similar", []))
+    return jsonify(r)
+
+
+@app.get("/api/day")
+def day_page():
+    return jsonify(explore.day(request.args.get("date")))
 
 
 @app.get("/api/recap")
