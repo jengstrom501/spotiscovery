@@ -22,6 +22,7 @@ if os.path.exists(os.path.join(HERE, ".env")):
 import analyze  # noqa: E402  (after .env so modules see the keys)
 import claude_mode  # noqa: E402
 import explore  # noqa: E402
+import insights  # noqa: E402
 import lastfm  # noqa: E402
 import recommend  # noqa: E402
 import spotify  # noqa: E402
@@ -261,8 +262,24 @@ def day_page():
 @app.get("/api/recap")
 def recap():
     r = analyze.recap(lastfm, request.args.get("year") or None)  # no year: latest finished one; "all": all time
-    if r.get("top"):
-        r["top"][0].update(spotify.artist_card(r["top"][0]["name"]))  # the #1 gets the big photo
+    if not r.get("top"):
+        return jsonify(r)
+    r["top"][0].update(spotify.artist_card(r["top"][0]["name"]))
+    y = r["year"]
+    prev = str(int(y) - 1) if y and str(int(y) - 1) in r["years"] else None  # compare with last year when there is one
+    eras = None
+    try:
+        eras = analyze.trends(lastfm).get("eras")
+    except Exception:  # eras need Last.fm tags; the other insights don't
+        pass
+    found = insights.find(lastfm if os.environ.get("LASTFM_API_KEY") else None,
+                          f"{y}-01-01" if y else None, f"{y}-12-31" if y else None, y or "all time", prev, r, eras)
+    photos = {}
+    for i in found[:8]:  # photos for the ones that can reach the card
+        if i.get("artist"):
+            photos.setdefault(i["artist"], spotify.artist_card(i["artist"]).get("image"))
+            i["image"] = photos[i["artist"]]
+    r["insights"] = found
     return jsonify(r)
 
 

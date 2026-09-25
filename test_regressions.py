@@ -368,6 +368,19 @@ def feature_clock_travel_albums_songs_compare():
     assert cmp["a"]["summary"]["plays"] == 44 and cmp["b"]["start"] == "2032-03-01"
 
 
+def feature_recap_insights():
+    # Feature: the recap leads with what's unusual about you, ranked, one finding per kind (uses the 2032 plays above)
+    r = client.get("/api/recap", query_string={"year": "2032"}).get_json()
+    ins = r["insights"]
+    by_id = {i["id"]: i for i in ins}
+    assert by_id["three_am"]["value"] == "Night Owl", ins
+    assert by_id["trip"]["value"] == "Copenhagen" and "Denmark" in by_id["trip"]["text"], by_id.get("trip")
+    assert by_id["streak"]["value"] == "21 days", by_id.get("streak")  # Jan 1..21
+    assert [i["score"] for i in ins] == sorted((i["score"] for i in ins), reverse=True)
+    assert len({i["kind"] for i in ins}) == len(ins)
+    assert all("—" not in i["text"] for i in ins)  # UI copy rule: no em dashes
+
+
 def feature_reimport_fills_new_fields():
     # Feature: plays imported before albums/devices were stored get them from a re-import, without duplicating
     store = deep_cuts.store
