@@ -1,6 +1,7 @@
 """SQLite storage: plays from the Spotify export, a key/value table, and an API response cache."""
 import json
 import os
+import re
 import sqlite3
 import time
 import unicodedata
@@ -16,6 +17,26 @@ CREATE TABLE IF NOT EXISTS plays (
 CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT);
 CREATE TABLE IF NOT EXISTS cache (k TEXT PRIMARY KEY, v TEXT, at REAL);
 """
+
+
+# Progress of long-running work, read by GET /api/progress so the page can show a real bar.
+# ponytail: in-process dict keyed by task name, fine for one local user; nothing survives a restart.
+PROGRESS = {}
+
+
+def progress(task, done, total, label):
+    PROGRESS[task] = {"done": done, "total": total, "label": label}
+
+
+def track(task, items, label):
+    """Yield items while publishing done/total under task. The entry is removed when the loop ends or breaks."""
+    items = list(items)
+    try:
+        for i, it in enumerate(items):
+            progress(task, i, len(items), label)
+            yield it
+    finally:
+        PROGRESS.pop(task, None)
 
 
 def db():
@@ -91,3 +112,8 @@ def norm_loose(name):
     """For matching one service's artist name to another's: "The Beyoncé" == "beyonce"."""
     n = "".join(ch for ch in unicodedata.normalize("NFKD", norm(name)) if not unicodedata.combining(ch))
     return n[4:] if n.startswith("the ") else n
+
+
+def squash(name):
+    """Spelling-proof key for "is this the same artist": "Travi$ Scott" == "travis scott", "Lil' Wayne" == "lil wayne"."""
+    return re.sub(r"[\W_]+", "", norm_loose(name).replace("$", "s"))

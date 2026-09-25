@@ -4,7 +4,7 @@ import re
 from collections import defaultdict
 from itertools import combinations
 
-from store import norm
+from store import norm, squash, track
 
 JUNK_TAGS = {
     "seen live", "favorites", "favourites", "favorite", "favourite", "my favorites", "love",
@@ -18,11 +18,22 @@ DECADE = re.compile(r"^(\d0s|\d{4}s?|\d{4})$")
 COLLAB = re.compile(r"\s+(?:&|\+|x|feat\.?|ft\.?|featuring|with|and|vs\.?)\s+|\s*,\s*")
 
 
-def is_known(name, known):
-    """Known by full name, or a collab with anyone you already play.
-    ponytail: separator split, so "Earth, Wind & Fire" only drops if you play an artist called "Fire"."""
+def is_known(name, known, tags=()):
+    """Known by name (spelling-proof, see store.squash), a collab with anyone you already play, or tagged on
+    Last.fm with the name of an artist you play (how aliases and side projects show up: "Scotts" -> "travis scott").
+    ponytail: separator split, so "Earth, Wind & Fire" only drops if you play an artist called "Fire"; and a
+    genre-named artist you play (the band "Electronic") would hide everything tagged with it. Rare, left as is."""
     n = norm(name)
-    return n in known or any(p in known for p in COLLAB.split(n) if p)
+    # Spelling-proofing only for the whole name: on parts and tags it over-matches ("the queen" -> Queen,
+    # the tag "florida" -> Flo Rida), so those need an exact match.
+    return "~" + squash(n) in known or any(p in known for p in (n, *COLLAB.split(n), *map(norm, tags)) if p)
+
+
+def known_set(names):
+    """Known artists as norm() keys plus "~"-prefixed squash() keys (kept apart so exact checks can't hit them),
+    the form is_known() expects."""
+    names = {norm(n) for n in names}
+    return names | {"~" + squash(n) for n in names}
 
 
 def good_tag(tag, artist=""):
@@ -49,7 +60,7 @@ def top_seeds(seeds, n):
 def tag_profile(seeds, lf, n=100):
     """{tag: weight}: your listening weight spread over each artist's Last.fm tags."""
     prof = defaultdict(float)
-    for name, w in top_seeds(seeds, n):
+    for name, w in track("profile", top_seeds(seeds, n), "Reading the tags of your top artists"):
         for tag, count in lf.top_tags(name)[:10]:
             if good_tag(tag, name):
                 prof[tag] += w * count / 100
@@ -60,16 +71,16 @@ def similar_recs(seeds, known, lf, obscurity=0.5, n_seeds=50, pool=150, k=40):
     """Artists similar to what you play that you've never played.
     obscurity 0..1 penalizes big Last.fm listener counts; that's what surfaces the overlooked."""
     score, because = defaultdict(float), defaultdict(list)
-    for seed, w in top_seeds(seeds, n_seeds):
+    for seed, w in track("similar", top_seeds(seeds, n_seeds), "Finding artists similar to yours"):
         for cand, match in lf.similar(seed):
             if is_known(cand, known):
                 continue
             score[cand] += w * match
             because[cand].append((w * match, seed))
     out = []
-    for cand in sorted(score, key=lambda c: -score[c])[:pool]:
+    for cand in track("similar", sorted(score, key=lambda c: -score[c])[:pool], "Checking how well-known each one is"):
         inf = lf.info(cand)
-        if not inf or is_known(inf["name"], known):  # autocorrect can map to an artist you know
+        if not inf or is_known(inf["name"], known, inf["tags"]):  # autocorrect can map to an artist you know
             continue
         penalty = (1 + inf["listeners"] / 100_000) ** obscurity
         out.append({"name": inf["name"], "score": round(score[cand] / penalty, 3),
@@ -97,7 +108,7 @@ def auto_blends(profile, known, lf, n_tags=12, k=6, min_hits=3):
     pairs = [(a, b) for a, b in combinations(tags, 2) if a not in b and b not in a]
     pairs.sort(key=lambda p: -profile[p[0]] * profile[p[1]])
     out, used = [], defaultdict(int)
-    for a, b in pairs:
+    for a, b in track("blends", pairs, "Trying tag pairs"):
         if used[a] >= 2 or used[b] >= 2:  # spread blends across your tags
             continue
         artists = blend([a, b], known, lf)

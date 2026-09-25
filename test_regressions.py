@@ -107,12 +107,21 @@ def issue_009_trends_without_lastfm_key():
 
 def issue_collab_of_known_artists():
     # Regression: "Future & Lil Uzi Vert" was recommended to someone who plays both (Last.fm lists collabs as artists)
-    known = {"future", "lil uzi vert"}
-    is_known = deep_cuts.recommend.is_known
+    rec = deep_cuts.recommend
+    known = rec.known_set(["Future", "Lil Uzi Vert", "Travis Scott", "Lil Wayne", "Beyoncé"])
     for collab in ("Future & Lil Uzi Vert", "Future x Lil Uzi Vert", "Lil Uzi Vert feat. Someone", "Future, Drake"):
-        assert is_known(collab, known), collab
-    assert not is_known("Slowdive & Ride", known)  # a collab of artists you don't play still shows
-    assert not is_known("Futurecop!", known)  # no substring matches
+        assert rec.is_known(collab, known), collab
+    assert not rec.is_known("Slowdive & Ride", known)  # a collab of artists you don't play still shows
+    assert not rec.is_known("Futurecop!", known)  # no substring matches
+    # Regression: Last.fm's misspelled duplicates ("Travi$ Scott", "Lil' Wayne") were recommended as new artists
+    for alias in ("Travi$ Scott", "Lil' Wayne", "Beyonce", "Lil Wayne feat. Drake"):
+        assert rec.is_known(alias, known), alias
+    assert rec.is_known("Scotts", known, ["hip-hop", "travis scott"])  # side project tagged with a known artist
+    assert not rec.is_known("Big Scarr", known, ["rap", "memphis"])
+    # Loose matching must not reach into parts and tags
+    known2 = rec.known_set(["Queen", "Flo Rida"])
+    assert not rec.is_known("The Good, the Bad & the Queen", known2)
+    assert not rec.is_known("Jackboy", known2, ["rap", "florida"])
 
 
 def feature_artist_image_pick():
@@ -137,6 +146,19 @@ def feature_artist_image_pick():
         assert sp.artist_card("Duster")["image"] is None
     finally:
         sp.connected, sp._get, requests.get = orig
+
+
+def feature_progress_reporting():
+    # Feature: long loops publish done/total at /api/progress, and clear it when finished or abandoned
+    store = deep_cuts.store
+    seen = []
+    for x in store.track("demo", ["a", "b", "c"], "Testing"):
+        seen.append(client.get("/api/progress").get_json()["demo"])
+    assert [s["done"] for s in seen] == [0, 1, 2] and seen[0]["total"] == 3 and seen[0]["label"] == "Testing", seen
+    assert "demo" not in client.get("/api/progress").get_json()
+    for x in store.track("demo", range(10), "Testing"):
+        break  # a loop that stops early (auto_blends) must not leave a stuck bar
+    assert "demo" not in store.PROGRESS
 
 
 def feature_zip_upload_extracts_history():

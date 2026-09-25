@@ -84,7 +84,15 @@ def _safe(fn, default):
 
 def sync(max_saved=2000):
     """Pull everything we use into kv['spotify'] and return it."""
+    try:
+        return _sync(max_saved)
+    finally:
+        store.PROGRESS.pop("sync", None)
+
+
+def _sync(max_saved):
     snap = {"top": {}, "recent": [], "followed": [], "saved_artists": [], "at": time.time()}
+    store.progress("sync", 0, 0, "Reading your top artists and follows")
     for rng in RANGES:
         items = _safe(lambda: _get("/me/top/artists", time_range=rng, limit=50)["items"], [])
         snap["top"][rng] = [a["name"] for a in items]
@@ -105,6 +113,7 @@ def sync(max_saved=2000):
         names, url = set(), API + "/me/tracks?limit=50"
         while url and len(names) < max_saved:  # ponytail: capped page walk, huge libraries only lose the tail
             page = _get(url)
+            store.progress("sync", page["offset"] + len(page["items"]), page["total"], "Reading your saved tracks")
             for it in page["items"]:
                 names.update(a["name"] for a in it["track"]["artists"])
             url = page.get("next")

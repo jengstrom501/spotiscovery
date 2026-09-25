@@ -83,6 +83,11 @@ def status():
                    plays=plays[0], first=plays[1], last=plays[2], synced_at=snap.get("at"))
 
 
+@app.get("/api/progress")
+def progress():
+    return jsonify(dict(store.PROGRESS))  # copy: worker threads add/remove entries while this serializes
+
+
 @app.post("/api/settings")
 def settings():
     """Save API keys. Last.fm and Anthropic keys are checked live first, so a rejected key never silently
@@ -151,41 +156,32 @@ def upload():
     StreamingHistory_music_*.json / Streaming_History_Audio_*.json entries, extracted here). Names what's
     skipped and why, so one video-history file or an empty zip doesn't abort the rest."""
     added, found, skipped = 0, 0, []
-
-    def ingest(name, data):
-        nonlocal added, found
-        if not store.parse_plays(data):
-            skipped.append(f"{name} (no music plays)")
-            return
-        found += 1
-        added += store.add_plays(data)
-
+    sources = []  # (name, open()) for every JSON to read, so progress can count them up front
     for f in request.files.getlist("files"):
-        if f.filename.lower().endswith(".zip"):
-            try:
-                zf = zipfile.ZipFile(f.stream)
-            except zipfile.BadZipFile:
-                skipped.append(f"{f.filename} (not a valid zip)")
-                continue
-            entries = [i for i in zf.infolist() if _is_history_json(i.filename)]
-            if not entries:
-                skipped.append(f"{f.filename} (no streaming history files inside)")
-                continue
-            for info in entries:
-                name = os.path.basename(info.filename)
-                try:
-                    data = json.load(zf.open(info))
-                except ValueError:
-                    skipped.append(f"{name} (not JSON)")
-                    continue
-                ingest(name, data)
+        if not f.filename.lower().endswith(".zip"):
+            sources.append((f.filename, lambda f=f: f.stream))
             continue
         try:
-            data = json.load(f.stream)
-        except ValueError:  # JSONDecodeError and UnicodeDecodeError (a corrupt or non-JSON file)
-            skipped.append(f"{f.filename} (not JSON)")
+            zf = zipfile.ZipFile(f.stream)
+        except zipfile.BadZipFile:
+            skipped.append(f"{f.filename} (not a valid zip)")
             continue
-        ingest(f.filename, data)
+        entries = [i for i in zf.infolist() if _is_history_json(i.filename)]
+        if not entries:
+            skipped.append(f"{f.filename} (no streaming history files inside)")
+        sources += [(os.path.basename(i.filename), lambda zf=zf, i=i: zf.open(i)) for i in entries]
+
+    for name, open_ in store.track("upload", sources, "Importing your history files"):
+        try:
+            data = json.load(open_())
+        except ValueError:  # JSONDecodeError and UnicodeDecodeError (a corrupt or non-JSON file)
+            skipped.append(f"{name} (not JSON)")
+            continue
+        if not store.parse_plays(data):
+            skipped.append(f"{name} (no music plays)")
+            continue
+        found += 1
+        added += store.add_plays(data)
 
     if not found:
         return jsonify(error=f"Nothing to import from {', '.join(skipped)}. Upload the zip Spotify sends you, or "
@@ -199,13 +195,13 @@ def trends():
 
 
 def with_cards(names_or_recs):
-    return [{**r, **spotify.artist_card(r["name"])} for r in names_or_recs]
+    return [{**r, **spotify.artist_card(r["name"])} for r in store.track("cards", names_or_recs, "Fetching artist photos")]
 
 
 def named_cards(names):
     """Cards for bare artist names, with Last.fm listeners + tags like the similar-sound cards."""
     out = []
-    for n in names:
+    for n in store.track("cards", names, "Looking up each artist"):
         inf = lastfm.info(n) or {"listeners": 0, "tags": []}
         out.append({"name": n, "listeners": inf["listeners"],
                     "tags": [t for t in inf["tags"] if recommend.good_tag(t)][:4]})

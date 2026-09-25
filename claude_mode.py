@@ -83,7 +83,7 @@ def suggest(profile, known, lf):
         kept = []
         for a in b["artists"]:
             inf = lf.info(a["name"])
-            if inf and not recommend.is_known(inf["name"], known):
+            if inf and not recommend.is_known(inf["name"], known, inf["tags"]):
                 kept.append({**a, "name": inf["name"], "listeners": inf["listeners"]})
         b["dropped"] = len(b["artists"]) - len(kept)  # hallucinated or already known
         b["artists"] = kept
