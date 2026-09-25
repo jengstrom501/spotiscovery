@@ -1,4 +1,4 @@
-# Deep Cuts
+# Spotiscovery
 
 A local web app that looks through your Spotify listening history, shows how your taste has changed, and finds **bands you've overlooked** that sound like what you already play. It can also mix sub-genres you like into new directions.
 
@@ -22,7 +22,7 @@ A local web app that looks through your Spotify listening history, shows how you
   - **Travel:** a world map of where you listened, with each trip's dates and soundtrack.
   - **Artist pages:** click any artist, anywhere, for their full history with you (all-time curve, rank, streaks, first play, songs, when you play them), their big songs you've missed, and similar artists you haven't heard.
   - **Song pages:** click any song for its life in your history: plays over the years, most in one day, skips by year, how it usually started, and what you play before and after it.
-- **Recap:** not another top-5 list. Deep Cuts looks for the most telling things in your year (a song you came back to after 7 years, an artist you drifted from, the discovery that took over, your 3am artist, your deepest cut, where your taste moved) and ranks them by how unusual they are. Pick which go on the card (Story or Square), then download, share or copy it.
+- **Recap:** not another top-5 list. Spotiscovery looks for the most telling things in your year (a song you came back to after 7 years, an artist you drifted from, the discovery that took over, your 3am artist, your deepest cut, where your taste moved) and ranks them by how unusual they are. Pick which go on the card (Story or Square), then download, share or copy it.
 - **Similar sound:** artists close to what you play that you've never played. The *Mainstream ↔ Deep cuts* slider pushes big names down so smaller acts come through.
 - **Songs you've missed:** the best-known songs by artists you already love that aren't in your history yet.
 - **Blends:** artists at the crossover of two or three of your tags, like *shoegaze × post-hardcore*. Some blends are picked automatically; you can also choose tags yourself.
@@ -34,15 +34,15 @@ Artists you already know are never recommended, including Last.fm's misspelled d
 
 Everything runs on your own machine. Your data stays in a local SQLite file.
 
-> **Why Last.fm?** In November 2024 Spotify shut off its recommendations, related-artists and audio-features APIs for new apps. Deep Cuts gets your *history* from Spotify and *similarity and genre tags* from Last.fm, which is free.
+> **Why Last.fm?** In November 2024 Spotify shut off its recommendations, related-artists and audio-features APIs for new apps. Spotiscovery gets your *history* from Spotify and *similarity and genre tags* from Last.fm, which is free.
 
 ## Setup (about 10 minutes)
 
 You need Python 3.10+.
 
 ```bash
-git clone https://github.com/<you>/deep-cuts.git
-cd deep-cuts
+git clone https://github.com/<you>/spotiscovery.git
+cd spotiscovery
 pip install -r requirements.txt
 python app.py
 ```
@@ -71,7 +71,7 @@ The Spotify API only shows your top artists and your last 50 plays. For real tre
 
 Upload the zip Spotify sends you directly, or unzip it yourself and upload the JSON files. Plays under 30 seconds are ignored.
 
-The extended history also carries albums, devices, countries, shuffle and how each song started, which Explore uses. If you imported before Deep Cuts stored those, upload the same zip again: existing plays get the extra fields and nothing is duplicated. (Your IP address, also in the export, is never stored.)
+The extended history also carries albums, devices, countries, shuffle and how each song started, which Explore uses. If you imported before Spotiscovery stored those, upload the same zip again: existing plays get the extra fields and nothing is duplicated. (Your IP address, also in the export, is never stored.)
 
 ### 4. Claude (optional)
 
@@ -104,7 +104,7 @@ Artist photos come from Spotify, or from Deezer's public search when Spotify has
 | `claude_mode.py` | Optional Claude blends, each artist checked against Last.fm |
 | `static/index.html` | The whole UI, with no build step |
 
-**Scoring.** Each artist you play gets a weight based on log minutes played, plus a bonus if they're in your Spotify top artists. For your top 50 artists, Deep Cuts collects Last.fm's similar artists. Each candidate's score is the sum of *(your weight for the seed artist × how similar the candidate is to it)*. Anyone you've played, follow or have saved is dropped. The obscurity slider then divides the score by `(1 + listeners/100k) ^ obscurity`.
+**Scoring.** Each artist you play gets a weight based on log minutes played, plus a bonus if they're in your Spotify top artists. For your top 50 artists, Spotiscovery collects Last.fm's similar artists. Each candidate's score is the sum of *(your weight for the seed artist × how similar the candidate is to it)*. Anyone you've played, follow or have saved is dropped. The obscurity slider then divides the score by `(1 + listeners/100k) ^ obscurity`.
 
 **Blends.** Your tag profile is your listening weight spread over each artist's Last.fm tags, with junk tags like "seen live" and decades removed. A blend is the set of artists in *every* chosen tag's top 300 that you don't already know.
 

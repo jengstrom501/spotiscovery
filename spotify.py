@@ -100,7 +100,7 @@ def find_track(artist, track=None):
     return hit and hit["uri"]
 
 
-def create_playlist(name, items, description="Made with Deep Cuts"):
+def create_playlist(name, items, description="Made with Spotiscovery"):
     """items: [{"artist", "track"?}]. Makes a private playlist and returns its link plus what couldn't be found."""
     uris, missing = [], []
     for it in store.track("playlist", items, "Finding each song on Spotify"):
@@ -112,7 +112,7 @@ def create_playlist(name, items, description="Made with Deep Cuts"):
     if not uris:
         raise RuntimeError("None of these are on Spotify, so no playlist was made.")
     # Spotify's Feb 2026 API change: /users/{id}/playlists and /playlists/{id}/tracks return 403 for
-    # development-mode apps (which every self-hosted Deep Cuts is); these are the replacements.
+    # development-mode apps (which every self-hosted Spotiscovery is); these are the replacements.
     pl = _post("/me/playlists", {"name": name, "public": False, "description": description})
     for i in range(0, len(uris), 100):  # Spotify takes up to 100 items per call
         _post(f"/playlists/{pl['id']}/items", {"uris": uris[i:i + 100]})

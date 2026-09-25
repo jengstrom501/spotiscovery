@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Deep Cuts</title>
+<title>Spotiscovery</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23BFE35A'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%230E0E0C'/%3E%3C/svg%3E">
 <link rel="preload" href="/static/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -63,6 +63,7 @@
   }
   .status { color: var(--fg-dim); font-size: 13px; min-height: 20px; }
   .status.err { color: var(--danger); }
+  .status.err::before { content: "! "; font-weight: 700; }  /* not color alone */
   .row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 
   /* ---- top bar */
@@ -81,8 +82,9 @@
   .top-right { margin-left: auto; display: flex; align-items: center; gap: 18px; }
   .states { display: flex; gap: 14px; font-size: 13px; color: var(--fg-dim); }
   .st { display: inline-flex; align-items: center; gap: 7px; }
-  .st::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--fg-faint); }
-  .st.on::before { background: var(--accent); }
+  /* ready = filled dot, not set up = hollow ring: readable without telling colors apart */
+  .st::before { content: ""; width: 7px; height: 7px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid var(--fg-dim); background: transparent; }
+  .st.on::before { background: var(--accent); border-color: var(--accent); }
   #setup-toggle { padding: 7px 14px; }
 
   /* ---- setup */
@@ -352,6 +354,7 @@
   /* ---- drill-down dialogs: a panel sliding in from the right */
   dialog.drawer { margin: 0 0 0 auto; height: 100dvh; max-height: none; width: min(860px, 100vw); padding: 0; border: 0;
                   border-left: 1px solid var(--line); background: var(--bg); color: var(--fg); overflow-y: auto; }
+  body:has(dialog[open]) { overflow: hidden; }
   dialog.drawer::backdrop { background: rgba(8,8,6,.6); }
   dialog.drawer[open] { animation: slidein .35s var(--ease); }
   @keyframes slidein { from { transform: translateX(40px); opacity: 0; } }
@@ -404,6 +407,7 @@
   ol.insights-pick .kicker { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   ol.insights-pick .small { display: block; line-height: 1.45; }
   .recap-stage { display: grid; place-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); padding: 28px; }
+  .recap-stage .empty { margin: 0; width: 100%; }
   .recap-stage canvas { display: block; max-width: 100%; max-height: 74vh; width: auto; height: auto; border-radius: 10px;
                         box-shadow: 0 24px 60px rgba(0,0,0,.45); }
 
@@ -446,6 +450,10 @@
     .brand { order: 1; }
     .top-right { order: 2; }
     nav.tabs { order: 3; width: 100%; height: 46px; margin: 4px -14px 0; overflow-x: auto; }
+    nav.tabs button { padding: 0 8px; }  /* all five tabs fit a 390px screen; before, "Recap" was cut off */
+    .range { flex-wrap: wrap; row-gap: 6px; }
+    .range input[type=range] { flex: 1 1 100px; width: auto; min-width: 100px; }
+    .range #obscurity-label { flex-basis: 100%; }
     main { padding-top: 20px; }
     .setup-card { padding: 20px; }
     .heat { grid-template-columns: 30px repeat(24, minmax(0, 1fr)); gap: 2px; font-size: 10px; }
@@ -479,7 +487,7 @@
 <body>
 <header class="top">
   <div class="wrap">
-    <div class="brand"><span class="disc" aria-hidden="true"></span>Deep Cuts</div>
+    <div class="brand"><span class="disc" aria-hidden="true"></span>Spotiscovery</div>
     <nav class="tabs" role="tablist" aria-label="Views">
       <button role="tab" aria-selected="true" data-tab="trends">Trends</button>
       <button role="tab" aria-selected="false" data-tab="explore">Explore</button>
@@ -653,7 +661,7 @@
     <div class="recap">
       <div class="recap-controls">
         <h2>What your year says about you</h2>
-        <p class="dim">Deep Cuts looks for the most telling things in your listening (comebacks, obsessions, where your taste moved) and puts the strongest on one card to share.</p>
+        <p class="dim">Spotiscovery looks for the most telling things in your listening (comebacks, obsessions, where your taste moved) and puts the strongest on one card to share.</p>
         <div class="field">
           <label for="recap-year">Year</label>
           <select id="recap-year"></select>
@@ -678,7 +686,8 @@
         </div>
         <p class="status" id="recap-status" role="status" style="margin-top:12px"></p>
       </div>
-      <div class="recap-stage"><canvas id="recap-canvas" width="1080" height="1920" role="img" aria-label="Your recap card"></canvas></div>
+      <div class="recap-stage"><canvas id="recap-canvas" width="1080" height="1920" role="img" aria-label="Your recap card"></canvas>
+        <div class="empty" id="recap-empty" hidden>Your recap appears here once you have listening history.<br><button onclick="setSetup(true)">Open setup</button></div></div>
     </div>
   </section>
 
@@ -709,7 +718,7 @@ async function run(statusId, msg, fn, clearOnError, btn, progress) {
   say(statusId, msg);
   const stop = progress ? watch(statusId, progress) : () => {};
   try { await fn(); if ($(statusId).textContent === msg) say(statusId, ""); return true; }  // keep a result message fn wrote
-  catch (e) { say(statusId, e.message, true); if (clearOnError) clearOnError.innerHTML = ""; return false; }
+  catch (e) { say(statusId, e.message, !/^No listening data yet/.test(e.message)); if (clearOnError) clearOnError.innerHTML = ""; return false; }  // first run is not an error
   finally { stop(); if (btn) btn.disabled = false; }
 }
 // Polls /api/progress and draws a bar under a status line. tasks: server task names this request reports
@@ -998,7 +1007,7 @@ function renderExplore(r) {
   const delta = (cur, was) => {
     if (!pv || !was) return "";
     const d = Math.round(100 * (cur - was) / was);
-    return `<span class="delta ${d > 0 ? "up" : d < 0 ? "down" : ""}">${d > 0 ? "+" : ""}${d}% vs ${esc(pvLabel)}</span>`;
+    return `<span class="delta ${d > 0 ? "up" : d < 0 ? "down" : ""}">${d > 0 ? "▲ +" : d < 0 ? "▼ " : ""}${d}% vs ${esc(pvLabel)}</span>`;
   };
   const tile = (k, v, extra = "") => `<div class="tile"><span>${k}</span><b>${v}</b>${extra}</div>`;
   const wd = r.weekday_avg, today = r.today.weekday;
@@ -1109,8 +1118,8 @@ function renderExplore(r) {
         <div class="cell wide"><span class="kicker">Biggest days</span>
           <ul class="plain">${r.biggest_days.map((d) => `<li>${dayBtn(d.day, dayLabel(d.day))}<em class="mono">${fmtH(d.hours)}, mostly ${esc(d.top)}</em></li>`).join("")}</ul></div>
         <div class="cell"><span class="kicker">Time of day</span>
-          <div class="stack">${hb.parts_of_day.map(([k, v], i) => `<i style="flex:${v || 0.001};background:${SERIES[i]}" title="${esc(k)}: ${v}%"></i>`).join("")}</div>
-          <ul class="legend">${hb.parts_of_day.map(([k, v], i) => `<li><i style="background:${SERIES[i]}"></i>${esc(k)}<em class="mono">${v}%</em></li>`).join("")}</ul></div>
+          <div class="stack">${hb.parts_of_day.map(([k, v], i) => `<i style="flex:${v || 0.001};background:${DAY_RAMP[i]}" title="${esc(k)}: ${v}%"></i>`).join("")}</div>
+          <ul class="legend">${hb.parts_of_day.map(([k, v], i) => `<li><i style="background:${DAY_RAMP[i]}"></i>${esc(k)}<em class="mono">${v}%</em></li>`).join("")}</ul></div>
         <div class="cell"><span class="kicker">Habits</span>
           <div class="trio"><div><b>${hb.skip_rate}%</b><span>skipped</span></div>
             ${hb.shuffle != null ? `<div><b>${hb.shuffle}%</b><span>on shuffle</span></div>` : ""}
@@ -1223,10 +1232,10 @@ async function openArtist(name) {
           ${r.albums.length ? `<h3 style="margin-top:22px">Albums</h3><ul class="plain">${r.albums.map(([al, h]) => `<li><span>${esc(al)}</span><em class="mono">${fmtH(h)}</em></li>`).join("")}</ul>` : ""}</div>
       </div>
       ${r.missed && r.missed.length ? `<h3>Their big songs you haven't played</h3>
-        ${playlistButton(`Deep Cuts: ${r.name} deep dive`, r.missed.map((track) => ({ artist: r.name, track })))}
+        ${playlistButton(`Spotiscovery: ${r.name} deep dive`, r.missed.map((track) => ({ artist: r.name, track })))}
         <ol class="rank">${r.missed.map((t) => `<li><span class="nm"><a href="${trackUrl(r.name, t)}" target="_blank" rel="noopener">${esc(t)}</a></span></li>`).join("")}</ol>` : ""}
       ${r.similar && r.similar.length ? `<h3>Sounds like them, new to you</h3>
-        ${playlistButton(`Deep Cuts: like ${r.name}`, r.similar.map((x) => ({ artist: x.name })))}
+        ${playlistButton(`Spotiscovery: like ${r.name}`, r.similar.map((x) => ({ artist: x.name })))}
         <div class="hscroll">${r.similar.map((x) => card(x)).join("")}</div>` : ""}`;
     const inRange = (m) => m >= r.start.slice(0, 7) && m <= r.end.slice(0, 7);
     const axes = { x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkipPadding: 14 } }, y: { grid, beginAtZero: true, border: { display: false } } };
@@ -1376,7 +1385,7 @@ function renderCompare(r) {
     if (x == null || y == null) return "";
     const d = kind === "pts" ? Math.round(y - x) : pct(x, y);
     if (d == null || d === 0) return `<span class="delta">same</span>`;
-    return `<span class="delta ${d > 0 ? "up" : ""}">${d > 0 ? "+" : ""}${d}${kind === "pts" ? " pts" : "%"}</span>`;
+    return `<span class="delta ${d > 0 ? "up" : ""}">${d > 0 ? "▲ +" : "▼ "}${d}${kind === "pts" ? " pts" : "%"}</span>`;
   };
   const part = (x, name) => (x.clock.parts.find((p) => p.name === name) || {}).share;
   const rows = [
@@ -1437,7 +1446,7 @@ function renderCompare(r) {
     { label: lb, data: B.weekday_avg, backgroundColor: ACCENT, borderRadius: { topLeft: 3, topRight: 3 }, borderSkipped: "bottom", maxBarThickness: 22 }] },
     options: { scales: axes, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${fmtH(c.parsed.y)}` } } } } }, "explore");
   chart("cmp-hour", { type: "line", data: { labels: Array.from({ length: 24 }, (_, h) => `${h}:00`), datasets: [
-    { label: la, data: A.hour_avg_min, borderColor: A_COLOR, borderWidth: 2, pointRadius: 0, tension: 0.35 },
+    { label: la, data: A.hour_avg_min, borderColor: A_COLOR, borderWidth: 2, borderDash: [7, 5], pointRadius: 0, tension: 0.35 },
     { label: lb, data: B.hour_avg_min, borderColor: ACCENT, borderWidth: 2, pointRadius: 0, tension: 0.35 }] },
     options: { scales: axes, interaction: { mode: "index", intersect: false },
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${c.parsed.y} min per day` } } } } }, "explore");
@@ -1498,11 +1507,12 @@ document.addEventListener("click", (e) => {
 const recap = { data: null, shape: "story", photos: {}, on: new Set() };
 const INK = { bg: "#0E0E0C", surface: "#171715", line: "#2A2A26", fg: "#ECE9E2", dim: "#A09B90", accent: "#BFE35A" };
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const CARD_SLOTS = { story: 5, square: 4 };  // the headline plus the supporting insights that fit each shape
+const CARD_SLOTS = { story: 4, square: 4 };  // the headline plus the supporting insights that fit each shape
 
 async function loadRecap(year) {
   return run("recap-status", "Working out what your listening says about you…", async () => {
     const r = await api("/api/recap" + (year ? "?year=" + encodeURIComponent(year) : ""));
+    $("recap-empty").hidden = !!r.top; $("recap-canvas").hidden = !r.top;  // no data: say so in the card area, not a blank box
     if (!r.top) throw new Error(r.error || "No listening data yet. Import your history in Setup.");
     const sel = $("recap-year");
     sel.innerHTML = [...r.years].reverse().map((y) => `<option value="${y}">${y}</option>`).join("") + `<option value="all">All time</option>`;
@@ -1623,71 +1633,122 @@ async function drawRecap() {
   };
 
   const allTime = !r.year;
-  const [fy, fm] = r.first_month.split("-"), [ly, lm] = r.last_month.split("-");
-  const period = allTime ? `${fy} to ${ly}` : fm === "01" && lm === "12" ? `${r.hours.toLocaleString()} hours of music` : `${MONTHS[+fm - 1]} to ${MONTHS[+lm - 1]} ${ly}`;
+  const pf = r.profile, [fy, fm] = r.first_month.split("-"), [ly, lm] = r.last_month.split("-");
+  const period = allTime ? `${fy} to ${ly}` : fm === "01" && lm === "12" ? `${r.hours.toLocaleString()} hours in ${r.year}` : `${MONTHS[+fm - 1]} to ${MONTHS[+lm - 1]} ${ly}`;
   const title = allTime ? "All time" : r.year;
   const [hero, ...rest] = chosenInsights().slice(0, CARD_SLOTS[recap.shape]);
+  const nEras = (r.eras || []).length;
+  // About you: all-time facts, whatever year is picked. Years on Spotify is measured from your first play in the history.
+  const yrs = pf.years_on >= 1 ? pf.years_on.toFixed(1).replace(/\.0$/, "") : String(Math.max(1, Math.round(pf.years_on * 12)));
+  const facts = [
+    [pf.plays.toLocaleString(), "plays"], [pf.artists.toLocaleString(), "artists"], [pf.songs.toLocaleString(), "songs"],
+    [pf.hours.toLocaleString(), "hours"], [yrs, pf.years_on >= 1 ? "years on Spotify" : "months on Spotify"],
+    [String(nEras), nEras === 1 ? "music era" : "music eras"]];
+
+  // Every month of your history as bars, the picked year bright, with your eras as a band underneath
+  const historyChart = (x, y, w, h, opt = {}) => {
+    const n = pf.months.length, gap = Math.max(1, Math.min(3, w / n * 0.18)), bw = (w - gap * (n - 1)) / n;
+    const chartH = h - (opt.bandH || 46) - 40 - 46, top = Math.max(...pf.hours_by_month, 1);  // caption 40, ticks 46, band
+    text("Every month since " + `${MONTHS[+pf.first_day.slice(5, 7) - 1]} ${pf.first_day.slice(0, 4)}`, x, y + 22, { size: opt.cap || 22, weight: 500, mono: true, color: INK.dim, maxWidth: w * .7 });
+    if (!allTime) text(`${r.year}: ${r.hours.toLocaleString()} h`, x + w, y + 22, { size: opt.cap || 22, weight: 600, mono: true, color: INK.accent, align: "right" });
+    const base = y + 40 + chartH;
+    pf.months.forEach((mo, i) => {
+      const bh = Math.max(2, pf.hours_by_month[i] / top * chartH), inYear = allTime || mo.startsWith(r.year);
+      ctx.fillStyle = inYear ? INK.accent : "rgba(191,227,90,.26)";
+      ctx.beginPath(); ctx.roundRect(x + i * (bw + gap), base - bh, bw, bh, Math.min(3, bw / 2)); ctx.fill();
+    });
+    ctx.fillStyle = INK.line; ctx.fillRect(x, base + 2, w, 2);
+    // year ticks along the bottom edge
+    pf.months.forEach((mo, i) => {
+      const firstOk = i === 0 && (pf.months.findIndex((m) => m.endsWith("-01")) >= 5 || pf.months.findIndex((m) => m.endsWith("-01")) < 0);
+      if (mo.endsWith("-01") || firstOk) text(`'${mo.slice(2, 4)}`, x + i * (bw + gap), base + 30, { size: opt.tick || 18, weight: 500, mono: true, color: INK.dim });
+    });
+    // eras: proportional segments on the same time axis; the current one in the accent
+    const idx = (q, end) => { const y0 = +q.slice(0, 4), qn = +q.slice(-1), mo = `${y0}-${String((qn - 1) * 3 + 1 + (end ? 2 : 0)).padStart(2, "0")}`;
+      const k = pf.months.indexOf(mo); return k < 0 ? (mo < pf.months[0] ? 0 : n - 1) : k; };
+    const bandY = base + 46, bandH = opt.bandH || 46;
+    (r.eras || []).forEach((e, k) => {
+      const a = idx(e.start, false), b = idx(e.end, true), sx = x + a * (bw + gap), sw = Math.max(4, (b - a + 1) * (bw + gap) - gap);
+      const cur = k === r.eras.length - 1;
+      ctx.fillStyle = cur ? "rgba(191,227,90,.22)" : k % 2 ? INK.line : "#33332E";
+      ctx.beginPath(); ctx.roundRect(sx, bandY, sw - 3, bandH, 10); ctx.fill();
+      if (sw > 130) text(e.tags[0], sx + 14, bandY + bandH / 2 + 7, { size: opt.tag || 20, weight: 600, color: cur ? INK.accent : INK.fg, maxWidth: sw - 34, minSize: 14 });
+    });
+  };
 
   ctx.fillStyle = INK.bg; ctx.fillRect(0, 0, W, H);
   ctx.beginPath(); ctx.arc(M + 14, M + 22, 14, 0, 7); ctx.fillStyle = INK.accent; ctx.fill();  // brand disc, as in the app header
   ctx.beginPath(); ctx.arc(M + 14, M + 22, 5, 0, 7); ctx.fillStyle = INK.bg; ctx.fill();
-  text("Deep Cuts", M + 42, M + 34, { size: 32, track: -.01 });
+  text("Spotiscovery", M + 42, M + 34, { size: 32, track: -.01 });
   text(period, W - M, M + 32, { size: 24, weight: 500, mono: true, color: INK.dim, align: "right" });
+  const factCell = (f, x, y, cw, vs, ls) => {
+    text(f[0], x, y, { size: vs, weight: 800, maxWidth: cw - 26, minSize: vs * .6, track: -.03 });  // leave a gutter to the next number
+    text(f[1], x, y + ls * 1.35, { size: ls, weight: 500, color: INK.dim, maxWidth: cw - 12 });
+  };
 
   if (story) {
-    text(title, M - 8, 330, { size: 230, weight: 800, color: INK.accent, maxWidth: W - 2 * M + 16, minSize: 120, track: -.05 });
-    text("What my listening says about me", M, 404, { size: 40, maxWidth: W - 2 * M, minSize: 28, track: -.015 });
-    if (!hero) return text("Tick an insight to put it on the card.", M, 560, { size: 34, weight: 500, color: INK.dim });
+    text(title, M - 8, 300, { size: 176, weight: 800, color: INK.accent, maxWidth: W - 2 * M + 16, minSize: 110, track: -.05 });
+    text("What my listening says about me", M, 358, { size: 34, maxWidth: W - 2 * M, minSize: 24, track: -.015 });
+    // About you: six all-time facts in two rows
+    const cw = (W - 2 * M) / 3;
+    facts.forEach((f, i) => factCell(f, M + (i % 3) * cw, 470 + Math.floor(i / 3) * 132, cw, 70, 24));
+    ctx.fillStyle = INK.line; ctx.fillRect(M, 412, W - 2 * M, 2);
+    historyChart(M, 682, W - 2 * M, 290);
+    if (!hero) return text("Tick an insight to put it on the card.", M, 1140, { size: 30, weight: 500, color: INK.dim });
     // The headline gets its own panel: photo top right, big value, then the sentence
-    const top = 462, pad = 52, inner = W - 2 * M - 2 * pad, ps = hero.artist ? 232 : 0;
-    const vOpt = { size: 80, weight: 800, color: INK.fg, maxWidth: inner - ps - 28, lineH: 1.04, maxLines: 2, track: -.03 };
-    const tOpt = { size: 36, maxWidth: inner, maxLines: 4 };
-    const tTop = Math.max(wrap(hero.value, 0, top + 184, { ...vOpt, dry: true }) + 72, top + pad + ps + 58);
-    const bottom = wrap(hero.text, 0, tTop, { ...tOpt, dry: true }) + pad;  // the panel hugs its text
-    panel(M, top, W - 2 * M, bottom - top, 36);
-    if (ps) photo(hero, W - M - pad - ps, top + pad, ps, 24);
-    text(hero.kicker, M + pad, top + 86, { size: 24, weight: 500, mono: true, color: INK.accent, maxWidth: inner - ps - 24 });
-    wrap(hero.value, M + pad, top + 184, vOpt);
+    const top = 1012, pad = 40, inner = W - 2 * M - 2 * pad, ps = hero.artist ? 168 : 0;
+    const vOpt = { size: 64, weight: 800, color: INK.fg, maxWidth: inner - ps - 24, lineH: 1.04, maxLines: 2, track: -.03 };
+    const tOpt = { size: 30, maxWidth: inner - ps - 24, maxLines: 3 };
+    const tTop = wrap(hero.value, 0, top + 128, { ...vOpt, dry: true }) + 48;
+    const bottom = Math.max(wrap(hero.text, 0, tTop, { ...tOpt, dry: true }) + pad, top + pad * 2 + ps);
+    panel(M, top, W - 2 * M, bottom - top, 32);
+    if (ps) photo(hero, W - M - pad - ps, top + pad, ps, 22);
+    text(hero.kicker, M + pad, top + 66, { size: 22, weight: 500, mono: true, color: INK.accent, maxWidth: inner - ps - 20 });
+    wrap(hero.value, M + pad, top + 128, vOpt);
     wrap(hero.text, M + pad, tTop, tOpt);
-    // The rest: rows under a hairline, each with kicker, value, sentence, and a small photo when there's an artist
-    const rowTop = bottom + 52, rowH = Math.min(200, (H - 90 - rowTop) / Math.max(rest.length, 1)), ss = 104;
+    // The rest: rows under a hairline
+    const rowTop = bottom + 34, rowH = Math.min(176, (H - 104 - rowTop) / Math.max(rest.length, 1)), ss = 88;
     rest.forEach((ins, k) => {
-      const y = rowTop + k * rowH, textW = W - 2 * M - (ins.artist ? ss + 28 : 0);
+      const y = rowTop + k * rowH, textW = W - 2 * M - (ins.artist ? ss + 24 : 0);
       ctx.fillStyle = INK.line; ctx.fillRect(M, y, W - 2 * M, 2);
-      if (ins.artist) photo(ins, W - M - ss, y + 34, ss, 18);
-      text(ins.kicker, M, y + 52, { size: 22, weight: 500, mono: true, color: INK.dim, maxWidth: textW });
-      text(ins.value, M, y + 106, { size: 46, weight: 700, maxWidth: textW, minSize: 30, track: -.02 });
-      wrap(ins.text, M, y + 146, { size: 26, maxWidth: textW, maxLines: 2, lineH: 1.28 });
+      if (ins.artist) photo(ins, W - M - ss, y + 26, ss, 16);
+      text(ins.kicker, M, y + 44, { size: 20, weight: 500, mono: true, color: INK.dim, maxWidth: textW });
+      text(ins.value, M, y + 92, { size: 40, weight: 700, maxWidth: textW, minSize: 28, track: -.02 });
+      wrap(ins.text, M, y + 128, { size: 24, maxWidth: textW, maxLines: 2, lineH: 1.28 });
     });
-    text("Made with Deep Cuts from my own listening history", M, H - 44, { size: 20, weight: 500, mono: true, color: INK.dim });
+    text("Made with Spotiscovery from my own listening history", M, H - 40, { size: 20, weight: 500, mono: true, color: INK.dim });
   } else {
-    text(title, M - 6, 226, { size: 150, weight: 800, color: INK.accent, maxWidth: W - 2 * M, minSize: 90, track: -.05 });
-    text("What my listening says about me", M, 282, { size: 30, maxWidth: W - 2 * M, minSize: 22, track: -.015 });
-    if (!hero) return text("Tick an insight to put it on the card.", M, 400, { size: 28, weight: 500, color: INK.dim });
-    const top = 322, pad = 40, inner = W - 2 * M - 2 * pad, ps = hero.artist ? 200 : 0;
-    const vOpt = { size: 58, weight: 800, color: INK.fg, maxWidth: inner - ps - 24, lineH: 1.05, maxLines: 2, track: -.03 };
-    const tOpt = { size: 26, maxWidth: inner - ps - 24, maxLines: 3 };
-    const tTop = wrap(hero.value, 0, top + 138, { ...vOpt, dry: true }) + 52;
-    const bottom = Math.max(wrap(hero.text, 0, tTop, { ...tOpt, dry: true }) + pad, top + pad * 2 + ps);  // hugs text or photo
-    panel(M, top, W - 2 * M, bottom - top, 30);
-    if (ps) photo(hero, W - M - pad - ps, top + pad, ps, 20);
-    text(hero.kicker, M + pad, top + 70, { size: 20, weight: 500, mono: true, color: INK.accent, maxWidth: inner - ps - 20 });
-    wrap(hero.value, M + pad, top + 138, vOpt);
+    // Square: title and the six facts side by side, the history chart under them, then the insights
+    text(title, M - 6, 240, { size: 126, weight: 800, color: INK.accent, maxWidth: 372, minSize: 76, track: -.05 });
+    text("What my listening says about me", M, 282, { size: 22, maxWidth: 380, minSize: 16, track: -.01 });
+    const gx = M + 420, cw = (W - M - gx) / 3;
+    facts.forEach((f, i) => factCell(f, gx + (i % 3) * cw, 176 + Math.floor(i / 3) * 106, cw, 46, 19));
+    historyChart(M, 322, W - 2 * M, 262, { bandH: 34, cap: 18, tick: 15, tag: 17 });
+    if (!hero) return text("Tick an insight to put it on the card.", M, 640, { size: 26, weight: 500, color: INK.dim });
+    const top = 612, pad = 30, inner = W - 2 * M - 2 * pad, ps = hero.artist ? 128 : 0;
+    const vOpt = { size: 46, weight: 800, color: INK.fg, maxWidth: inner - ps - 20, lineH: 1.05, maxLines: 2, track: -.03 };
+    const tOpt = { size: 23, maxWidth: inner - ps - 20, maxLines: 3 };
+    const tTop = wrap(hero.value, 0, top + 96, { ...vOpt, dry: true }) + 36;
+    const bottom = Math.max(wrap(hero.text, 0, tTop, { ...tOpt, dry: true }) + pad, top + pad * 2 + ps);
+    panel(M, top, W - 2 * M, bottom - top, 26);
+    if (ps) photo(hero, W - M - pad - ps, top + pad, ps, 18);
+    text(hero.kicker, M + pad, top + 52, { size: 17, weight: 500, mono: true, color: INK.accent, maxWidth: inner - ps - 16 });
+    wrap(hero.value, M + pad, top + 96, vOpt);
     wrap(hero.text, M + pad, tTop, tOpt);
-    const gap = 28, cw = (W - 2 * M - gap * 2) / 3, y = bottom + 44;
+    const gap = 26, ccw = (W - 2 * M - gap * 2) / 3, y = bottom + 28;
     rest.forEach((ins, k) => {
-      const x = M + k * (cw + gap);
-      ctx.fillStyle = INK.line; ctx.fillRect(x, y, cw, 2);
-      text(ins.kicker, x, y + 40, { size: 17, weight: 500, mono: true, color: INK.dim, maxWidth: cw });
-      const e2 = wrap(ins.value, x, y + 86, { size: 34, weight: 700, color: INK.fg, maxWidth: cw, lineH: 1.08, maxLines: 2, track: -.02 });
-      wrap(ins.text, x, e2 + 40, { size: 21, maxWidth: cw, maxLines: 5, lineH: 1.3 });
+      const x = M + k * (ccw + gap);
+      ctx.fillStyle = INK.line; ctx.fillRect(x, y, ccw, 2);
+      text(ins.kicker, x, y + 32, { size: 15, weight: 500, mono: true, color: INK.dim, maxWidth: ccw });
+      const e2 = wrap(ins.value, x, y + 68, { size: 28, weight: 700, color: INK.fg, maxWidth: ccw, lineH: 1.08, maxLines: 2, track: -.02 });
+      wrap(ins.text, x, e2 + 32, { size: 18, maxWidth: ccw, maxLines: 4, lineH: 1.28 });
     });
-    text("Made with Deep Cuts from my own listening history", M, H - 40, { size: 18, weight: 500, mono: true, color: INK.dim });
+    text("Made with Spotiscovery from my own listening history", M, H - 32, { size: 16, weight: 500, mono: true, color: INK.dim });
   }
 }
 
 const recapBlob = () => new Promise((res) => $("recap-canvas").toBlob(res, "image/png"));
-const recapName = () => `deep-cuts-${recap.data.year || "all-time"}-${recap.shape}.png`;
+const recapName = () => `spotiscovery-${recap.data.year || "all-time"}-${recap.shape}.png`;
 $("recap-download").onclick = async () => {
   const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(await recapBlob()), download: recapName() });
   a.click();
@@ -1700,7 +1761,7 @@ $("recap-share").hidden = !canShareFiles();
 $("recap-copy").hidden = !(navigator.clipboard && window.ClipboardItem);
 $("recap-share").onclick = async () => {
   const file = new File([await recapBlob()], recapName(), { type: "image/png" });
-  try { await navigator.share({ files: [file], text: "My year in music, made with Deep Cuts" }); }
+  try { await navigator.share({ files: [file], text: "My year in music, made with Spotiscovery" }); }
   catch (e) { if (e.name !== "AbortError") say("recap-status", "Sharing didn't work here. Download the image instead.", true); }
 };
 $("recap-copy").onclick = async () => {
@@ -1748,6 +1809,8 @@ window.onpopstate = () => {
 // ---- charts (categorical palette validated with the dataviz skill: CVD dE >= 8.4, all >= 3:1 on dark surfaces)
 const SERIES = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"];
 const ACCENT = "#BFE35A";
+// Parts of the day run in order, so they get one hue, dark to light (validated as an ordinal ramp on the card surface)
+const DAY_RAMP = ["#184f95", "#256abf", "#5598e7", "#86b6ef"];
 Chart.defaults.color = "#A09B90";
 Chart.defaults.font.family = "Geist, system-ui, sans-serif";
 Chart.defaults.font.size = 12;
@@ -1858,7 +1921,7 @@ async function loadTrends() {
         <div class="chart-box"><canvas id="c-main" role="img" aria-label="Listeners of your typical artist per quarter"></canvas></div></div>` : ""}
       ${drift.length ? `<div class="block"><h2>${driftTitle(drift)}</h2>
         <p class="dim">Share of your listening per tag, each quarter, on the same scale. Change compares your first and latest year.</p>
-        <div class="multiples">${drift.map((d, i) => `<div><div class="mh"><b>${esc(d.tag)}</b><span class="mono ${d.delta > 0 ? "up" : ""}">${d.delta > 0 ? "+" : ""}${d.delta} pts</span></div>
+        <div class="multiples">${drift.map((d, i) => `<div><div class="mh"><b>${esc(d.tag)}</b><span class="mono ${d.delta > 0 ? "up" : ""}">${d.delta > 0 ? "▲ +" : d.delta < 0 ? "▼ " : ""}${d.delta} pts</span></div>
           <div class="mini"><canvas id="c-tag-${i}" role="img" aria-label="${esc(d.tag)}: ${d.first}% to ${d.last}% of your listening"></canvas></div></div>`).join("")}</div></div>`
         : t.drift_note ? `<div class="block"><h2>Taste drift</h2><p class="dim">${esc(t.drift_note)}</p></div>` : ""}
       ${t.lost && t.lost.artists.length ? `<div class="block"><h2>Lost loves</h2>
@@ -1936,7 +1999,7 @@ function runSimilar() {
   out.innerHTML = skeleton(9);
   return run("similar-status", FIRST_RUN, async () => {
     const recs = await api("/api/similar?obscurity=" + $("obscurity").value);
-    out.innerHTML = recs.length ? `<div style="grid-column: 1 / -1">${playlistButton("Deep Cuts: similar sound",
+    out.innerHTML = recs.length ? `<div style="grid-column: 1 / -1">${playlistButton("Spotiscovery: similar sound",
         recs.map((r) => ({ artist: r.name })))}</div>` + recs.map((r) => card(r)).join("")
       : `<div class="empty" style="grid-column: 1 / -1">Nothing new at this setting. Try moving the slider.</div>`;
     reveal(out);
@@ -1978,7 +2041,7 @@ function loadDeepCuts() {
   out.innerHTML = `<div class="hscroll">${skeleton(5)}</div>`;
   return run("deep-status", "Checking which of their best-known songs you've heard…", async () => {
     const rows = await api("/api/deep-cuts");
-    out.innerHTML = rows.length ? playlistButton("Deep Cuts: songs I've missed", rows.flatMap((a) => a.tracks.map((track) => ({ artist: a.name, track }))))
+    out.innerHTML = rows.length ? playlistButton("Spotiscovery: songs I've missed", rows.flatMap((a) => a.tracks.map((track) => ({ artist: a.name, track }))))
       + `<div class="hscroll">${rows.map((a) => card(a, `<p class="meta">You've heard ${a.heard} of their top ${a.of}</p>
       <ol class="tracks">${a.tracks.map((t) => `<li><a href="${trackUrl(a.name, t)}" target="_blank" rel="noopener">${esc(t)}</a></li>`).join("")}</ol>
       <button class="link small" data-artist="${esc(a.name)}">Your history with them</button>`)).join("")}</div>`
@@ -2011,7 +2074,7 @@ async function loadBlends() {
     }));
     updateTagPick();
     out.innerHTML = d.blends.length ? d.blends.map((b) => `<div class="blend">
-        <h3>${blendTitle(b.tags)}</h3>${playlistButton("Deep Cuts: " + b.tags.join(" × "), b.artists.map((a) => ({ artist: a.name })))}
+        <h3>${blendTitle(b.tags)}</h3>${playlistButton("Spotiscovery: " + b.tags.join(" × "), b.artists.map((a) => ({ artist: a.name })))}
         <div class="hscroll">${b.artists.map((a) => card(a)).join("")}</div></div>`).join("")
       : `<div class="empty">No blends yet. They need a bit more listening data.</div>`;
     reveal(out);
@@ -2023,7 +2086,7 @@ $("run-blend").onclick = async () => {
   await run("blend-status", "Blending…", async () => {
     const d = await api("/api/blend?tags=" + encodeURIComponent([...picked].join(",")));
     out.innerHTML = `<div class="blend"><h3>${blendTitle(d.tags)}</h3>` +
-      (d.artists.length ? playlistButton("Deep Cuts: " + d.tags.join(" × "), d.artists.map((a) => ({ artist: a.name })))
+      (d.artists.length ? playlistButton("Spotiscovery: " + d.tags.join(" × "), d.artists.map((a) => ({ artist: a.name })))
         + `<div class="hscroll">${d.artists.map((a) => card(a)).join("")}</div>` : `<div class="empty">No overlap you haven't heard. Try another mix.</div>`) + `</div>`;
     reveal(out);
   }, out, $("run-blend"), { tasks: ["cards"], idle: "Asking Last.fm" });
@@ -2038,7 +2101,7 @@ $("run-claude").onclick = () => {
       <h3>${esc(b.name)}</h3>
       <div style="margin-top:8px">${b.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>
       <p>${esc(b.why)}${b.dropped ? ` (${b.dropped} dropped: unverified or already known.)` : ""}</p>
-      ${b.artists.length ? playlistButton("Deep Cuts: " + b.name, b.artists.map((a) => ({ artist: a.name }))) : ""}
+      ${b.artists.length ? playlistButton("Spotiscovery: " + b.name, b.artists.map((a) => ({ artist: a.name }))) : ""}
       <div class="hscroll">${b.artists.map((a) => card(a, `<p class="why">${esc(a.note)}</p>`)).join("")}</div></div>`).join("");
     reveal(out);
   }, out, $("run-claude"), { tasks: ["profile", "trends", "cards"], idle: "Claude is writing your blends" });

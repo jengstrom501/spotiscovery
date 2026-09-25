@@ -1,4 +1,4 @@
-# Deep Cuts
+# Spotiscovery
 Spotify history → trends + overlooked-artist recs + sub-genre blends. Local Flask app,
 public GitHub repo (nested git repo, ignored by the Claude OS repo).
 

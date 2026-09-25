@@ -1,4 +1,4 @@
-"""Deep Cuts: local web app. Run: python app.py, then open http://127.0.0.1:8888"""
+"""Spotiscovery: local web app. Run: python app.py, then open http://127.0.0.1:8888"""
 import json
 import os
 import re
@@ -207,7 +207,7 @@ def playlist():
         return jsonify(error="Nothing to save."), 400
     if not spotify.can_playlist():
         return jsonify(error="Reconnect Spotify in Setup to allow saving playlists."), 400
-    return jsonify(spotify.create_playlist(str(data.get("name") or "Deep Cuts")[:100], items))
+    return jsonify(spotify.create_playlist(str(data.get("name") or "Spotiscovery")[:100], items))
 
 
 @app.get("/api/explore")
@@ -280,6 +280,7 @@ def recap():
             photos.setdefault(i["artist"], spotify.artist_card(i["artist"]).get("image"))
             i["image"] = photos[i["artist"]]
     r["insights"] = found
+    r["eras"] = [{"start": e["start"], "end": e["end"], "tags": e["tags"]} for e in (eras or [])]
     return jsonify(r)
 
 
@@ -405,5 +406,5 @@ def claude():
 
 if __name__ == "__main__":
     store.flag_not_music()  # data imported before this check existed
-    print("Deep Cuts on http://127.0.0.1:8888")
+    print("Spotiscovery on http://127.0.0.1:8888")
     app.run(host="127.0.0.1", port=8888, threaded=True)
