@@ -100,6 +100,13 @@ def cached(k, fetch, max_age=30 * 86400):
     return v
 
 
+def peek(k, max_age=30 * 86400):
+    """The cached value for k if there is a fresh one, else None. Never fetches."""
+    with db() as c:
+        row = c.execute("SELECT v, at FROM cache WHERE k=?", (k,)).fetchone()
+    return json.loads(row[0]) if row and time.time() - row[1] < max_age else None
+
+
 def parse_plays(records):
     """Plays from either Spotify export: extended history (Streaming_History_Audio_*.json, `ts`) or standard
     account data (StreamingHistory_music_*.json, `endTime` in UTC to the minute).

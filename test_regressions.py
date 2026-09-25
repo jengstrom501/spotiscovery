@@ -247,7 +247,7 @@ def feature_playlist_export():
         body = r.get_json()
         assert body == {"url": "https://open.spotify.com/playlist/pl1", "added": 2, "missing": ["Nobody"]}, body
         # Regression: the pre-Feb-2026 endpoints (/users/{id}/playlists, /playlists/{id}/tracks) 403 for dev-mode apps
-        assert posts[0] == ("/me/playlists", {"name": "Test", "public": False, "description": "Made with Deep Cuts"})
+        assert posts[0] == ("/me/playlists", {"name": "Test", "public": False, "description": "Made with Spotiscovery"})
         assert posts[1] == ("/playlists/pl1/items", {"uris": ["spotify:track:hum", "spotify:track:duster"]})  # no cover, no dupe
         sp.can_playlist = lambda: False  # an old token without the playlist permission
         r = client.post("/api/playlist", json={"items": [{"artist": "Hum"}]})
@@ -376,9 +376,43 @@ def feature_recap_insights():
     assert by_id["three_am"]["value"] == "Night Owl", ins
     assert by_id["trip"]["value"] == "Copenhagen" and "Denmark" in by_id["trip"]["text"], by_id.get("trip")
     assert by_id["streak"]["value"] == "21 days", by_id.get("streak")  # Jan 1..21
+    pf = r["profile"]  # the all-time "about you" numbers, whatever year is picked
+    assert pf["plays"] > r["plays"] and pf["artists"] >= r["artists"] and pf["years_on"] >= 0, pf
+    assert pf["months"][0] <= "2032-01" <= pf["months"][-1] and len(pf["months"]) == len(pf["hours_by_month"]), pf["months"][:3]
+    assert abs(sum(pf["hours_by_month"]) - pf["hours"]) < 1 + len(pf["months"]) * 0.05  # months add up to the total
     assert [i["score"] for i in ins] == sorted((i["score"] for i in ins), reverse=True)
     assert len({i["kind"] for i in ins}) == len(ins)
+    assert "insights" in dir(deep_cuts) and deep_cuts.insights.PRIORITY[0] == "early"
     assert all("—" not in i["text"] for i in ins)  # UI copy rule: no em dashes
+
+
+def feature_found_early():
+    # Feature: "you found them early" = first played within ~2 years of their first release (MusicBrainz) and big
+    # today (Last.fm). Uses the 2032 plays: Day Band first played 2032-01-01. Both services mocked.
+    from datetime import date
+    ins, mb, ex = deep_cuts.insights, deep_cuts.insights.musicbrainz, deep_cuts.explore
+    debuts = {"Day Band": "2031-08-01",  # first play 5 months after their first release
+              "Night Owl": "2020-01-01"}  # first play 12 years after: not early
+    orig = mb.cached_debut, ex.plays
+    mb.cached_debut = lambda name: (True, debuts.get(name))
+
+    class LF:
+        def info(self, a): return {"listeners": {"Day Band": 3_000_000, "Night Owl": 5_000_000}.get(a, 50_000)}
+    try:
+        c = ex.plays()
+        got = ins.found_early(c, LF(), date(2034, 1, 1))
+        assert got and got["name"] == "Day Band" and got["listeners"] == 3_000_000 and 100 < got["gap_days"] < 200, got
+        assert ins.found_early(c, LF(), date(2032, 6, 1)) is None  # played under a year before this period ends
+        debuts["Day Band"] = "2010-01-01"  # long established when you found them
+        assert ins.found_early(c, LF(), date(2034, 1, 1)) is None
+        debuts["Day Band"] = "2031-08-01"
+
+        class Small:
+            def info(self, a): return {"listeners": 400_000}  # early, but never got big
+        assert ins.found_early(c, Small(), date(2034, 1, 1)) is None
+    finally:
+        mb.cached_debut, ex.plays = orig
+    assert mb._date("2015-02") == "2015-02-01" and mb._date("2015") == "2015-01-01" and mb._date("x") is None
 
 
 def feature_reimport_fills_new_fields():

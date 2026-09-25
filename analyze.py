@@ -141,7 +141,22 @@ def recap(lf, year=None, n_tags=40, n_deep=60, min_deep_hours=2):
             deep = {"name": a, "listeners": inf["listeners"], "hours": round(h, 1)}
     (track, artist), plays = tracks.most_common(1)[0] if tracks else ((None, None), 0)
     months = sorted({ts[:7] for ts, *_ in sel})
+    # "About you", always all-time whatever year is picked: what the card says about the listener, and a monthly
+    # history to chart with the picked year highlighted
+    every = {}
+    for ts, a, t, ms in rows:
+        every[ts[:7]] = every.get(ts[:7], 0) + ms / 3.6e6
+    first_d, last_d = datetime.fromisoformat(rows[0][0].replace("Z", "+00:00")), datetime.fromisoformat(rows[-1][0].replace("Z", "+00:00"))
+    all_months, m = [], datetime(first_d.year, first_d.month, 1)
+    while (m.year, m.month) <= (last_d.year, last_d.month):
+        all_months.append(f"{m.year}-{m.month:02d}")
+        m = datetime(m.year + (m.month == 12), m.month % 12 + 1, 1)
+    profile = {"plays": len(rows), "artists": len({a for _, a, _, _ in rows}), "songs": len({(a, t) for _, a, t, _ in rows if t}),
+               "hours": round(sum(every.values())), "first_day": first_d.date().isoformat(), "last_day": last_d.date().isoformat(),
+               "years_on": round((last_d - first_d).days / 365.25, 1),
+               "months": all_months, "hours_by_month": [round(every.get(k, 0), 1) for k in all_months]}
     return {
+        "profile": profile,
         "years": years, "year": year, "first_month": months[0], "last_month": months[-1],
         "hours": round(sum(hours.values())), "plays": len(sel), "artists": len(hours),
         "new_artists": sum(1 for a in hours if year is None or first_year[a] == year),

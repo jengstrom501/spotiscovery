@@ -1,15 +1,18 @@
-"""What Deep Cuts figured out about you: candidate findings for a period, each scored by how unusual it is,
+"""What Spotiscovery figured out about you: candidate findings for a period, each scored by how unusual it is,
 so the recap card leads with the most telling ones instead of a top-5 list.
 
 Each insight: {id, kind, kicker, value, text, score 0..1, artist?}. `kind` keeps the card varied (one per kind);
 `artist` lets the card show a photo. Scores are hand-set curves, each noted where it's defined: they only
 need to rank findings against each other, not be calibrated probabilities."""
 import math
+import threading
+import time
 from bisect import bisect_left, bisect_right
 from collections import Counter
 from datetime import date, timedelta
 
 import explore
+import musicbrainz
 import store
 
 
@@ -82,6 +85,59 @@ def comebacks(c, lo, hi, min_years=2):
         gap = (rows[i].day - last_before[k]).days / 365.25
         if gap >= min_years and (best is None or gap > best[0]):
             best = (gap, rows[i], last_before[k])
+    return best
+
+
+_warming = []
+
+
+def _warm(names):
+    """Look up the rest in the background (musicbrainz.py throttles), so the next recap has them."""
+    def run():
+        try:
+            for n in names:
+                try:
+                    musicbrainz.debut(n)
+                except Exception:
+                    pass
+        finally:
+            _warming.clear()
+    _warming.append(True)
+    threading.Thread(target=run, daemon=True).start()
+
+
+def found_early(c, lf, e, min_listeners=1_500_000, max_gap_days=730, budget_s=30, check=40):
+    """Artists you played within ~2 years of their first release and who are big today. Last.fm only knows
+    today's listener count, so "were they small then" comes from MusicBrainz's first release date instead:
+    you were there at the start. Uses cached lookups, spends up to budget_s on new ones, and finishes the rest
+    in the background. Returns the biggest such artist as {name, first, gap_days, listeners, hours} or None."""
+    firsts, total = c["first_artist"], Counter()
+    for p in c["rows"]:
+        total[p.artist] += p.ms / 3.6e6
+    pool = []
+    for a, h in total.most_common(check * 2):  # your favorites first: artists you really played, not one-offs
+        if h >= 2 and firsts[a] <= e - timedelta(days=365):
+            inf = lf.info(a)
+            if inf and inf.get("listeners", 0) >= min_listeners:
+                pool.append((a, h, inf["listeners"]))
+    best, deadline, later = None, time.time() + budget_s, []
+    for a, h, listeners in store.track("recap", pool[:check], "Checking when artists debuted"):
+        known, d = musicbrainz.cached_debut(a)
+        if not known:
+            if time.time() > deadline or _warming:
+                later.append(a)
+                continue
+            try:
+                d = musicbrainz.debut(a)
+            except Exception:  # MusicBrainz down or busy: skip this artist
+                continue
+        if not d:
+            continue
+        gap = (firsts[a] - date.fromisoformat(d)).days
+        if -60 <= gap <= max_gap_days and (best is None or listeners > best["listeners"]):  # a month or two of date slop
+            best = {"name": a, "first": firsts[a].isoformat(), "gap_days": max(gap, 0), "listeners": listeners, "hours": h}
+    if later and not _warming:
+        _warm(later)
     return best
 
 
@@ -209,6 +265,17 @@ def find(lf, start, end, label, prev_label=None, recap=None, eras=None):
             text=f"You played {p.track} by {p.artist} again on {short(p.day.isoformat(), multi)}, {int(gap)} years after the last time.",
             score=clamp(gap / 5) * 0.9)
 
+    # Found early: you were playing them right after their first release, and they're big now (score by how big)
+    if lf:
+        fe = found_early(c, lf, e)
+        if fe:
+            gap = fe["gap_days"]
+            when = "within weeks of" if gap < 45 else f"{round(gap / 30.4)} months after" if gap < 700 else "2 years after"
+            add(id="found_early", kind="early", kicker="You found them early", value=fe["name"], artist=fe["name"],
+                text=f"You first played {fe['name']} in {date.fromisoformat(fe['first']):%b %Y}, {when} their first release. "
+                     f"Today {fmt_n(fe['listeners'])} people listen to them on Last.fm.",
+                score=0.75 + 0.2 * clamp(math.log10(fe["listeners"] / 1e6) / 1.2))  # asked for by name, so it ranks near the top
+
     # A trip and its soundtrack (a 2-week trip = max)
     trips = [t for t in E["travel"]["trips"] if t["track"] and t["days"] >= 2]
     if trips:
@@ -270,7 +337,7 @@ def find(lf, start, end, label, prev_label=None, recap=None, eras=None):
 
 
 # Tie-break when scores are equal: the more personal and surprising kinds first
-PRIORITY = ["clock", "comeback", "deep", "pair", "discovery", "drift", "taste", "era", "overlap", "mainstream", "travel",
+PRIORITY = ["early", "clock", "comeback", "deep", "pair", "discovery", "drift", "taste", "era", "overlap", "mainstream", "travel",
             "repeat", "streak", "fresh", "day", "weekday", "skips", "top"]
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 # Names for the trip insight's text (the card is drawn server-agnostic, so no browser Intl here). Unknown codes
