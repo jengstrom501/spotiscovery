@@ -22,7 +22,7 @@ A local web app that looks through your Spotify listening history, shows how you
   - **Travel:** a world map of where you listened, with each trip's dates and soundtrack.
   - **Artist pages:** click any artist, anywhere, for their full history with you (all-time curve, rank, streaks, first play, songs, when you play them), their big songs you've missed, and similar artists you haven't heard.
   - **Song pages:** click any song for its life in your history: plays over the years, most in one day, skips by year, how it usually started, and what you play before and after it.
-- **Recap:** not another top-5 list. Spotiscovery looks for the most telling things in your year (a song you came back to after 7 years, an artist you drifted from, the discovery that took over, your 3am artist, your deepest cut, where your taste moved) and ranks them by how unusual they are. Pick which go on the card (Story or Square), then download, share or copy it.
+- **Recap:** a card that summarizes *you* (total plays, artists, songs, hours, years on Spotify, number of music eras, and a chart of every month with your eras marked), not another top-5 list. Spotiscovery looks for the most telling things in your year (a song you came back to after 7 years, an artist you drifted from, the big artist you found within two years of their first release, your 3am artist, your deepest cut, where your taste moved) and ranks them by how unusual they are. Pick which go on the card (Story or Square), then download, share or copy it.
 - **Similar sound:** artists close to what you play that you've never played. The *Mainstream ↔ Deep cuts* slider pushes big names down so smaller acts come through.
 - **Songs you've missed:** the best-known songs by artists you already love that aren't in your history yet.
 - **Blends:** artists at the crossover of two or three of your tags, like *shoegaze × post-hardcore*. Some blends are picked automatically; you can also choose tags yourself.
@@ -90,6 +90,10 @@ The first time you open Trends, Similar or Blends it takes a minute or two, beca
 If you connected Spotify before playlist export existed, click **Reconnect to save playlists** in Setup once.
 
 Artist photos come from Spotify, or from Deezer's public search when Spotify has none or isn't connected.
+
+Release dates for "you found them early" come from MusicBrainz (free, no key). It allows one request per second, so the first recap checks a few artists and finishes the rest in the background; run it again a few minutes later.
+
+The colors are chosen to be readable with red/green color blindness: nothing relies on red versus green, changes carry arrows and signs, and the time-of-day chart uses a single blue ramp.
 
 ## How it works
 

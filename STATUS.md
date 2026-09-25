@@ -1,6 +1,6 @@
 # Status
 
-**State (2026-09-25):** Running on real data (151k plays, 2016-2026, extended export re-imported so albums,
+**State (2026-09-25, renamed Spotiscovery):** Running on real data (151k plays, 2016-2026, extended export re-imported so albums,
 devices, countries, shuffle and start/end reasons are filled). Tabs: Trends, Explore (any period, daily averages,
 calendar, habits, genres by period, artist + day drill-downs), Similar sound, Blends, Recap (shareable card).
 
@@ -13,6 +13,9 @@ Built 2026-09-25 (round 3): compare two periods, song pages, albums front-to-bac
 travel map with trips, music by the clock ("your 3am music").
 
 Recap is insight-driven (insights.py): ~18 kinds of finding, scored and ranked, one per kind.
+
+## Next up: better recommendations
+Build a backtest (hide 2025, recommend from earlier data, measure hits), then recency + skip-aware seeds, popularity-normalized scoring with a taste-fit check, and taste-cluster shelves.
 
 ## Ideas not built yet
 - Album pages (tracklist with which songs you play, full listens over time)
