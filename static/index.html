@@ -184,6 +184,9 @@
   .card a.name:hover { color: var(--accent); }
   .card .meta { font-size: 12px; color: var(--fg-dim); }
   .card .why { font-size: 12.5px; color: var(--fg-dim); line-height: 1.45; }
+  .pl-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 12px 0 4px; }
+  .pl-row button { padding: 6px 14px; font-size: 13px; }
+  .pl-row .status { min-height: 0; }
   .card ol.tracks { margin: 2px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.5; }
   .card ol.tracks a { color: var(--fg); text-decoration: none; }
   .card ol.tracks a:hover { color: var(--accent); text-decoration: underline; }
@@ -320,7 +323,7 @@
         <div>
           <div class="side-step">
             <h3>Connect Spotify</h3>
-            <p>Top artists, recent plays, follows and saved tracks. Anything you already know is left out of the picks.</p>
+            <p>Top artists, recent plays, follows and saved tracks. Anything you already know is left out of the picks. Connecting also lets you save any list of picks as a private playlist.</p>
             <div class="row">
               <a class="btn primary" href="/login" id="connect">Connect Spotify</a>
               <button id="sync" hidden>Re-sync</button>
@@ -498,7 +501,9 @@ async function loadStatus() {
   state = await api("/api/status");
   const st = (on, label) => `<span class="st ${on ? "on" : ""}">${label}<span class="sr">${on ? " ready" : " not set up"}</span></span>`;
   $("chips").innerHTML = st(state.connected, "Spotify") + st(state.lastfm, "Last.fm") + st(state.claude, "Claude");
-  $("connect").hidden = state.connected;
+  // Tokens from before playlist export lack that permission: offer a reconnect instead of hiding the button
+  $("connect").hidden = state.connected && state.playlists;
+  $("connect").textContent = state.connected ? "Reconnect to save playlists" : "Connect Spotify";
   $("sync").hidden = !state.connected;
   $("connect").setAttribute("aria-disabled", !state.spotify_app);
   $("run-claude").disabled = !state.claude;
@@ -739,7 +744,7 @@ async function loadTrends() {
       options: { scales: axes, interaction: { mode: "index", intersect: false }, plugins: { legend: { display: false } } } });
     if (ms) chart("c-main", { type: "line", data: { labels: ms.quarters.map(quarter), datasets: [{ label: "Typical artist's listeners",
       data: ms.listeners, borderColor: ACCENT, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: ACCENT, cubicInterpolationMode: "monotone" }] },
-      options: { scales: { x: axes.x, y: { type: "logarithmic", grid, border: { display: false }, ticks: { callback: (v) => [1, 2, 5].includes(+String(v)[0]) ? fmt(v) : "" } } },
+      options: { scales: { x: axes.x, y: { type: "logarithmic", grid, border: { display: false }, ticks: { callback: (v) => [1, 2, 5].includes(+(v / 10 ** Math.floor(Math.log10(v))).toFixed(2)) ? fmt(v) : "" } } },  // 1-2-5 steps only
         interaction: { mode: "index", intersect: false },
         plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${fmt(c.parsed.y)} listeners` } } } } });
     const top = Math.max(...drift.flatMap((d) => d.share));  // one scale for every panel, so they compare honestly
@@ -783,7 +788,8 @@ function runSimilar() {
   out.innerHTML = skeleton(9);
   return run("similar-status", FIRST_RUN, async () => {
     const recs = await api("/api/similar?obscurity=" + $("obscurity").value);
-    out.innerHTML = recs.length ? recs.map((r) => card(r)).join("")
+    out.innerHTML = recs.length ? `<div style="grid-column: 1 / -1">${playlistButton("Deep Cuts: similar sound",
+        recs.map((r) => ({ artist: r.name })))}</div>` + recs.map((r) => card(r)).join("")
       : `<div class="empty" style="grid-column: 1 / -1">Nothing new at this setting. Try moving the slider.</div>`;
     reveal(out);
   }, out, $("run-similar"), { tasks: ["similar", "cards"] });
@@ -795,6 +801,28 @@ $("obscurity").oninput = updateObscurityLabel;
 $("obscurity").onchange = runSimilar;
 updateObscurityLabel();
 
+// ---- "Save as playlist" buttons. Payloads live in a map, so a button only carries an id.
+const playlists = new Map();
+function playlistButton(name, items) {
+  const id = playlists.size + 1;
+  playlists.set(String(id), { name, items });
+  return `<div class="pl-row"><button class="pl" data-pl="${id}">Save as Spotify playlist</button><span class="status" id="pl-status-${id}" role="status"></span></div>`;
+}
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-pl]");
+  if (!b) return;
+  const id = b.dataset.pl, { name, items } = playlists.get(id), status = `pl-status-${id}`;
+  if (!state.playlists) {
+    say(status, state.connected ? "Reconnect Spotify in Setup to allow playlists (one click)." : "Connect Spotify in Setup first.", true);
+    return setSetup(true);
+  }
+  await run(status, "Saving…", async () => {
+    const r = await api("/api/playlist", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, items }) });
+    $(status).innerHTML = `Saved ${r.added} songs. <a href="${esc(r.url)}" target="_blank" rel="noopener">Open in Spotify</a>`
+      + (r.missing.length ? ` <span class="dim">(${r.missing.length} not on Spotify)</span>` : "");
+  }, null, b, { tasks: ["playlist"] });
+});
+
 // ---- songs you've missed by artists you already play
 const trackUrl = (artist, track) => "https://open.spotify.com/search/" + encodeURIComponent(`${artist} ${track}`);
 function loadDeepCuts() {
@@ -802,7 +830,8 @@ function loadDeepCuts() {
   out.innerHTML = `<div class="hscroll">${skeleton(5)}</div>`;
   return run("deep-status", "Checking which of their best-known songs you've heard…", async () => {
     const rows = await api("/api/deep-cuts");
-    out.innerHTML = rows.length ? `<div class="hscroll">${rows.map((a) => card(a, `<p class="meta">You've heard ${a.heard} of their top ${a.of}</p>
+    out.innerHTML = rows.length ? playlistButton("Deep Cuts: songs I've missed", rows.flatMap((a) => a.tracks.map((track) => ({ artist: a.name, track }))))
+      + `<div class="hscroll">${rows.map((a) => card(a, `<p class="meta">You've heard ${a.heard} of their top ${a.of}</p>
       <ol class="tracks">${a.tracks.map((t) => `<li><a href="${trackUrl(a.name, t)}" target="_blank" rel="noopener">${esc(t)}</a></li>`).join("")}</ol>`)).join("")}</div>`
       : `<div class="empty">You've heard the best-known songs of all your top artists. Impressive.</div>`;
     reveal(out);
@@ -833,7 +862,8 @@ async function loadBlends() {
     }));
     updateTagPick();
     out.innerHTML = d.blends.length ? d.blends.map((b) => `<div class="blend">
-        <h3>${blendTitle(b.tags)}</h3><div class="hscroll">${b.artists.map((a) => card(a)).join("")}</div></div>`).join("")
+        <h3>${blendTitle(b.tags)}</h3>${playlistButton("Deep Cuts: " + b.tags.join(" × "), b.artists.map((a) => ({ artist: a.name })))}
+        <div class="hscroll">${b.artists.map((a) => card(a)).join("")}</div></div>`).join("")
       : `<div class="empty">No blends yet. They need a bit more listening data.</div>`;
     reveal(out);
   }, out, null, { tasks: ["profile", "blends", "cards"] });
@@ -844,7 +874,8 @@ $("run-blend").onclick = async () => {
   await run("blend-status", "Blending…", async () => {
     const d = await api("/api/blend?tags=" + encodeURIComponent([...picked].join(",")));
     out.innerHTML = `<div class="blend"><h3>${blendTitle(d.tags)}</h3>` +
-      (d.artists.length ? `<div class="hscroll">${d.artists.map((a) => card(a)).join("")}</div>` : `<div class="empty">No overlap you haven't heard. Try another mix.</div>`) + `</div>`;
+      (d.artists.length ? playlistButton("Deep Cuts: " + d.tags.join(" × "), d.artists.map((a) => ({ artist: a.name })))
+        + `<div class="hscroll">${d.artists.map((a) => card(a)).join("")}</div>` : `<div class="empty">No overlap you haven't heard. Try another mix.</div>`) + `</div>`;
     reveal(out);
   }, out, $("run-blend"), { tasks: ["cards"], idle: "Asking Last.fm" });
   $("run-blend").disabled = picked.size < 2;
@@ -858,6 +889,7 @@ $("run-claude").onclick = () => {
       <h3>${esc(b.name)}</h3>
       <div style="margin-top:8px">${b.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>
       <p>${esc(b.why)}${b.dropped ? ` (${b.dropped} dropped: unverified or already known.)` : ""}</p>
+      ${b.artists.length ? playlistButton("Deep Cuts: " + b.name, b.artists.map((a) => ({ artist: a.name }))) : ""}
       <div class="hscroll">${b.artists.map((a) => card(a, `<p class="why">${esc(a.note)}</p>`)).join("")}</div></div>`).join("");
     reveal(out);
   }, out, $("run-claude"), { tasks: ["profile", "trends", "cards"], idle: "Claude is writing your blends" });

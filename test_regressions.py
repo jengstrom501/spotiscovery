@@ -223,6 +223,38 @@ def feature_insights():
     assert d[0]["tracks"] == ["Deep One", "Deep Three"] and d[0]["heard"] == 3, d
 
 
+def feature_playlist_export():
+    # Feature: save a list of picks as a private Spotify playlist (Spotify mocked)
+    sp = deep_cuts.spotify
+    orig = sp._get, sp._post, sp.can_playlist
+    posts = []
+    catalog = {"Hum": "spotify:track:hum", "Duster": "spotify:track:duster"}
+
+    def get(path, **params):
+        if path == "/me":
+            return {"id": "me"}
+        artist = params["q"].split('"')[1]
+        items = [{"uri": catalog[artist], "artists": [{"name": artist}]}] if artist in catalog else []
+        return {"tracks": {"items": [{"uri": "spotify:track:cover", "artists": [{"name": "Tribute Band"}]}] + items}}
+
+    def post(path, body):
+        posts.append((path, body))
+        return {"id": "pl1", "external_urls": {"spotify": "https://open.spotify.com/playlist/pl1"}}
+    try:
+        sp._get, sp._post, sp.can_playlist = get, post, (lambda: True)
+        r = client.post("/api/playlist", json={"name": "Test", "items": [{"artist": "Hum"}, {"artist": "Duster", "track": "Echo"},
+                                                                         {"artist": "Nobody"}, {"artist": "Hum"}]})
+        body = r.get_json()
+        assert body == {"url": "https://open.spotify.com/playlist/pl1", "added": 2, "missing": ["Nobody"]}, body
+        assert posts[0] == ("/users/me/playlists", {"name": "Test", "public": False, "description": "Made with Deep Cuts"})
+        assert posts[1] == ("/playlists/pl1/tracks", {"uris": ["spotify:track:hum", "spotify:track:duster"]})  # no cover, no dupe
+        sp.can_playlist = lambda: False  # an old token without the playlist permission
+        r = client.post("/api/playlist", json={"items": [{"artist": "Hum"}]})
+        assert r.status_code == 400 and "Reconnect" in r.get_json()["error"]
+    finally:
+        sp._get, sp._post, sp.can_playlist = orig
+
+
 def feature_zip_upload_extracts_history():
     # Feature: upload the Spotify zip directly; the server extracts the streaming-history entries itself
     import io

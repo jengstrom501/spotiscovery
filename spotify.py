@@ -13,7 +13,8 @@ import store
 AUTH = "https://accounts.spotify.com/authorize"
 TOKEN = "https://accounts.spotify.com/api/token"
 API = "https://api.spotify.com/v1"
-SCOPES = "user-top-read user-read-recently-played user-library-read user-follow-read"
+SCOPES = "user-top-read user-read-recently-played user-library-read user-follow-read playlist-modify-private"
+PLAYLIST_SCOPE = "playlist-modify-private"
 RANGES = ["short_term", "medium_term", "long_term"]
 
 
@@ -47,11 +48,17 @@ def _save_token(resp):
     old = store.get("token") or {}
     store.put("token", {"access": t["access_token"],
                         "refresh": t.get("refresh_token", old.get("refresh")),
+                        "scope": t.get("scope", old.get("scope", "")),
                         "expires": time.time() + t["expires_in"] - 60})
 
 
 def connected():
     return bool(store.get("token"))
+
+
+def can_playlist():
+    """Tokens from before playlist export lack the scope; the page asks for a reconnect then."""
+    return PLAYLIST_SCOPE in (store.get("token") or {}).get("scope", "").split()
 
 
 def _access():
@@ -71,6 +78,39 @@ def _get(path_or_url, **params):
     r = requests.get(url, params=params, headers={"Authorization": "Bearer " + _access()}, timeout=20)
     r.raise_for_status()
     return r.json()
+
+
+def _post(path, body):
+    r = requests.post(API + path, json=body, headers={"Authorization": "Bearer " + _access()}, timeout=20)
+    r.raise_for_status()
+    return r.json()
+
+
+def find_track(artist, track=None):
+    """Spotify URI for a named track, or for the artist's most popular match when no track is given."""
+    q = f'artist:"{artist}"' + (f' track:"{track}"' if track else "")
+    items = _get("/search", q=q, type="track", limit=10)["tracks"]["items"]
+    want = store.norm_loose(artist)
+    hit = next((t for t in items if any(store.norm_loose(a["name"]) == want for a in t["artists"])), None)
+    return hit and hit["uri"]
+
+
+def create_playlist(name, items, description="Made with Deep Cuts"):
+    """items: [{"artist", "track"?}]. Makes a private playlist and returns its link plus what couldn't be found."""
+    uris, missing = [], []
+    for it in store.track("playlist", items, "Finding each song on Spotify"):
+        uri = find_track(it["artist"], it.get("track"))
+        if uri and uri not in uris:
+            uris.append(uri)
+        elif not uri:
+            missing.append(it.get("track") or it["artist"])
+    if not uris:
+        raise RuntimeError("None of these are on Spotify, so no playlist was made.")
+    me = _get("/me")["id"]
+    pl = _post(f"/users/{me}/playlists", {"name": name, "public": False, "description": description})
+    for i in range(0, len(uris), 100):  # Spotify takes up to 100 items per call
+        _post(f"/playlists/{pl['id']}/tracks", {"uris": uris[i:i + 100]})
+    return {"url": pl["external_urls"]["spotify"], "added": len(uris), "missing": missing}
 
 
 def _safe(fn, default):

@@ -80,6 +80,7 @@ def status():
         plays = c.execute(f"SELECT COUNT(*), MIN(ts), MAX(ts) FROM plays WHERE {store.MUSIC}").fetchone()
     snap = store.get("spotify") or {}
     return jsonify(spotify_app=bool(os.environ.get("SPOTIFY_CLIENT_ID")), connected=spotify.connected(),
+                   playlists=spotify.can_playlist(),
                    lastfm=bool(os.environ.get("LASTFM_API_KEY")), claude=claude_mode.available(),
                    plays=plays[0], first=plays[1], last=plays[2], synced_at=snap.get("at"))
 
@@ -192,6 +193,18 @@ def upload():
         return jsonify(error=f"Nothing to import from {', '.join(skipped)}. Upload the zip Spotify sends you, or "
                              "the StreamingHistory_music_*.json / Streaming_History_Audio_*.json files inside it."), 400
     return jsonify(added=added, **({"skipped": skipped} if skipped else {}))
+
+
+@app.post("/api/playlist")
+def playlist():
+    """Save a list of recs as a private Spotify playlist. Body: {name, items: [{artist, track?}]}."""
+    data = request.get_json(silent=True) or {}
+    items = [i for i in data.get("items", []) if isinstance(i, dict) and i.get("artist")][:200]
+    if not items:
+        return jsonify(error="Nothing to save."), 400
+    if not spotify.can_playlist():
+        return jsonify(error="Reconnect Spotify in Setup to allow saving playlists."), 400
+    return jsonify(spotify.create_playlist(str(data.get("name") or "Deep Cuts")[:100], items))
 
 
 @app.get("/api/not-music")
