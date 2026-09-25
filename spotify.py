@@ -82,7 +82,12 @@ def _get(path_or_url, **params):
 
 def _post(path, body):
     r = requests.post(API + path, json=body, headers={"Authorization": "Bearer " + _access()}, timeout=20)
-    r.raise_for_status()
+    if not r.ok:  # surface Spotify's own reason, not just "403 Client Error"
+        try:
+            reason = r.json()["error"]["message"]
+        except (ValueError, KeyError, TypeError):
+            reason = r.reason
+        raise RuntimeError(f"Spotify refused {path} ({r.status_code}): {reason}")
     return r.json()
 
 
@@ -106,10 +111,11 @@ def create_playlist(name, items, description="Made with Deep Cuts"):
             missing.append(it.get("track") or it["artist"])
     if not uris:
         raise RuntimeError("None of these are on Spotify, so no playlist was made.")
-    me = _get("/me")["id"]
-    pl = _post(f"/users/{me}/playlists", {"name": name, "public": False, "description": description})
+    # Spotify's Feb 2026 API change: /users/{id}/playlists and /playlists/{id}/tracks return 403 for
+    # development-mode apps (which every self-hosted Deep Cuts is); these are the replacements.
+    pl = _post("/me/playlists", {"name": name, "public": False, "description": description})
     for i in range(0, len(uris), 100):  # Spotify takes up to 100 items per call
-        _post(f"/playlists/{pl['id']}/tracks", {"uris": uris[i:i + 100]})
+        _post(f"/playlists/{pl['id']}/items", {"uris": uris[i:i + 100]})
     return {"url": pl["external_urls"]["spotify"], "added": len(uris), "missing": missing}
 
 

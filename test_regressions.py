@@ -246,8 +246,9 @@ def feature_playlist_export():
                                                                          {"artist": "Nobody"}, {"artist": "Hum"}]})
         body = r.get_json()
         assert body == {"url": "https://open.spotify.com/playlist/pl1", "added": 2, "missing": ["Nobody"]}, body
-        assert posts[0] == ("/users/me/playlists", {"name": "Test", "public": False, "description": "Made with Deep Cuts"})
-        assert posts[1] == ("/playlists/pl1/tracks", {"uris": ["spotify:track:hum", "spotify:track:duster"]})  # no cover, no dupe
+        # Regression: the pre-Feb-2026 endpoints (/users/{id}/playlists, /playlists/{id}/tracks) 403 for dev-mode apps
+        assert posts[0] == ("/me/playlists", {"name": "Test", "public": False, "description": "Made with Deep Cuts"})
+        assert posts[1] == ("/playlists/pl1/items", {"uris": ["spotify:track:hum", "spotify:track:duster"]})  # no cover, no dupe
         sp.can_playlist = lambda: False  # an old token without the playlist permission
         r = client.post("/api/playlist", json={"items": [{"artist": "Hum"}]})
         assert r.status_code == 400 and "Reconnect" in r.get_json()["error"]
