@@ -116,6 +116,35 @@
           font: 11px var(--mono); color: var(--fg-dim); }
   .heat div { height: 24px; border-radius: 3px; }
   .heat .lab { align-self: center; }
+  .heat .peak { outline: 2px solid var(--fg); outline-offset: 1px; }
+  .heat-key { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 12px; color: var(--fg-dim); }
+  .heat-key i { width: 120px; height: 8px; border-radius: 99px; background: linear-gradient(90deg, rgba(191,227,90,.04), rgb(191,227,90)); }
+  .heat-key .mono { margin-left: 8px; }
+
+  /* ---- headline insights: one sentence each, the "so what" before the charts */
+  .insights { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 28px; }
+  .insights > div { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); padding: 16px 18px; }
+  .insights span { font: 12px var(--mono); color: var(--fg-dim); text-transform: uppercase; letter-spacing: .06em; }
+  .insights p { margin-top: 8px; font-size: 16px; line-height: 1.4; letter-spacing: -.01em; color: var(--fg-dim); }
+  .insights b { color: var(--fg); font-weight: 600; }
+
+  /* ---- eras: a timeline band, segment width = how many quarters the era lasted */
+  .eras { display: flex; gap: 4px; margin-top: 18px; }
+  .eras { overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin; }
+  .eras > div { flex: 1 1 0; min-width: 130px; border-top: 3px solid var(--raise); padding: 10px 10px 0 0; display: grid; gap: 4px; align-content: start; }
+  .eras > div.now { border-top-color: var(--accent); }
+  .eras span { font-size: 12.5px; color: var(--fg-dim); line-height: 1.35; }
+  .eras b { font-size: 14px; font-weight: 600; line-height: 1.3; }
+
+  /* ---- small multiples for taste drift */
+  .multiples { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px 24px; margin-top: 18px; }
+  .mh { display: flex; justify-content: space-between; gap: 8px; font-size: 13.5px; }
+  .mh b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mh span { color: var(--fg-dim); font-size: 12px; }
+  .mh span.up { color: var(--fg); }
+  .mini { position: relative; height: 70px; margin-top: 6px; border-bottom: 1px solid var(--line); }
+  .spark { display: block; width: 100%; height: 24px; }
+  .spark polyline { fill: none; stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
 
   .years { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(190px, 1fr); gap: 32px; overflow-x: auto;
            scroll-snap-type: x mandatory; margin-top: 18px; padding-bottom: 10px; }
@@ -155,6 +184,9 @@
   .card a.name:hover { color: var(--accent); }
   .card .meta { font-size: 12px; color: var(--fg-dim); }
   .card .why { font-size: 12.5px; color: var(--fg-dim); line-height: 1.45; }
+  .card ol.tracks { margin: 2px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.5; }
+  .card ol.tracks a { color: var(--fg); text-decoration: none; }
+  .card ol.tracks a:hover { color: var(--accent); text-decoration: underline; }
   @media (min-width: 640px) {
     .grid.feature > .card:first-child { grid-column: span 2; grid-row: span 2; }
     .grid.feature > .card:first-child .art { aspect-ratio: auto; flex: 1; min-height: 240px; }
@@ -233,6 +265,10 @@
     .toolbar { flex-direction: column; align-items: stretch; }
     .toolbar .primary { justify-content: center; }
     .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .multiples { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .eras { flex-direction: column; gap: 14px; }
+    .eras > div { border-top: 0; border-left: 3px solid var(--raise); padding: 0 0 0 12px; }
+    .eras > div.now { border-left-color: var(--accent); }
   }
 </style>
 </head>
@@ -325,6 +361,12 @@
     <p class="status" id="similar-status" role="status" style="margin-top:12px"></p>
     <div class="grid feature" id="similar-body">
       <div class="empty" style="grid-column: 1 / -1">Set how far from the mainstream you want to go, then find artists.</div>
+    </div>
+    <div class="block">
+      <h2>Songs you've missed</h2>
+      <p class="dim">The most-played songs on Last.fm by artists you already love that aren't in your history yet. Artists with the most gaps come first.</p>
+      <p class="status" id="deep-status" role="status" style="margin-top:10px"></p>
+      <div id="deep-body"></div>
     </div>
   </section>
 
@@ -538,7 +580,7 @@ $("files").onchange = async (e) => {
 const TABS = ["trends", "similar", "blends"];
 const currentTabFromUrl = () => (TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "trends");
 const loaded = {};
-const loaders = { trends: loadTrends, blends: loadBlends };
+const loaders = { trends: loadTrends, similar: loadDeepCuts, blends: loadBlends };
 // push=false on a back/forward navigation and on first load, so we don't fight the history we're responding to.
 function showTab(name, push = true) {
   document.querySelectorAll("nav.tabs button").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === name));
@@ -570,6 +612,39 @@ Chart.defaults.maintainAspectRatio = false;
 const charts = [];
 const grid = { color: "#1E1E1B" };
 function chart(id, cfg) { charts.push(new Chart($(id), cfg)); }
+const argmax = (a) => a.reduce((best, v, i) => (v > a[best] ? i : best), 0);
+const argmax2d = (rows) => { const flat = rows.flat(), i = argmax(flat); return [Math.floor(i / rows[0].length), i % rows[0].length]; };
+const month = (m) => new Date(m + "-01T12:00:00").toLocaleString(undefined, { month: "short", year: "numeric" });
+const quarter = (q) => q.replace("-Q", " Q");
+const quarters = (a, b) => { const n = (q) => +q.slice(0, 4) * 4 + +q.slice(-1); return n(b) - n(a) + 1; };
+const avg = (a) => a.reduce((s, v) => s + v, 0) / (a.length || 1);
+// "Your typical artist has 2.9M listeners now, down 31% from 2021 Q4": compares the latest quarter with your
+// most mainstream quarter, or with your least mainstream one if you've moved toward the mainstream since.
+function mainstreamLine(ms) {
+  const v = ms.listeners, now = v[v.length - 1], hi = argmax(v), lo = argmax(v.map((x) => -x));
+  const pct = (a, b) => Math.round(100 * Math.abs(a - b) / b);
+  const base = `Your typical artist has <b>${fmt(now)}</b> Last.fm listeners now`;
+  if (hi !== v.length - 1 && now < 0.9 * v[hi]) return `${base}, ${pct(now, v[hi])}% fewer than in ${quarter(ms.quarters[hi])}`;
+  if (lo !== v.length - 1 && now > 1.1 * v[lo]) return `${base}, ${pct(now, v[lo])}% more than in ${quarter(ms.quarters[lo])}`;
+  return `${base}, about where you've always been`;
+}
+// Tag drift as small multiples: one panel per tag, rising tags first. Change = latest year vs first year of shares.
+function driftPanels(dr) {
+  return dr.tags.map((tag) => {
+    const s = dr.share[tag], first = +avg(s.slice(0, 4)).toFixed(1), last = +avg(s.slice(-4)).toFixed(1);
+    return { tag, share: s, first, last, delta: Math.round(last - first) };
+  }).sort((a, b) => b.delta - a.delta);
+}
+function driftTitle(p) {
+  const up = p[0], down = p[p.length - 1];
+  return up.delta > 0 && down.delta < 0 ? `${esc(up.tag)} is rising, ${esc(down.tag)} is fading` : "How your taste has shifted";
+}
+// Tiny line of yearly hours for a card; the shape is the point, the exact numbers are in the text beside it.
+function spark(values) {
+  const hi = Math.max(...values) || 1, step = 100 / Math.max(values.length - 1, 1);
+  const pts = values.map((v, i) => `${(i * step).toFixed(1)},${(22 - 20 * v / hi).toFixed(1)}`).join(" ");
+  return `<svg class="spark" viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true"><polyline points="${pts}"/></svg>`;
+}
 
 async function loadTrends() {
   return run("trends-status", "Crunching your history…", async () => {
@@ -587,9 +662,23 @@ async function loadTrends() {
       reveal(body);
       return;
     }
-    const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
     const max = Math.max(...t.heatmap.flat()) || 1;
     const from = t.months[0], to = t.months[t.months.length - 1];
+
+    // Each chart's title states what it shows ("Peak: March 2021"), the subtitle says what was measured.
+    const peakI = argmax(t.hours), discI = argmax(t.discovered);
+    const avg3 = t.hours.map((_, i) => i < 2 ? null : +((t.hours[i] + t.hours[i - 1] + t.hours[i - 2]) / 3).toFixed(1));
+    const [hd, hh] = argmax2d(t.heatmap);
+    const ms = t.mainstream && t.mainstream.quarters.length > 1 ? t.mainstream : null;
+    const era = t.eras && t.eras.length ? t.eras[t.eras.length - 1] : null;
+    const insights = [
+      era && ["Right now", `Your <b>${era.tags.map(esc).join(" × ")}</b> era, since ${quarter(era.start)}`],
+      ms && ["Mainstream meter", mainstreamLine(ms)],
+      ["Peak month", `<b>${month(t.months[peakI])}</b>: ${Math.round(t.hours[peakI])} hours of music`],
+    ].filter(Boolean);
+    const drift = t.drift ? driftPanels(t.drift) : [];
+
     body.innerHTML = `
       <div>
         <div class="statline">
@@ -597,38 +686,68 @@ async function loadTrends() {
           <span><b class="mono">${t.total_hours.toLocaleString()}</b> hours</span>
           <span><b class="mono">${t.artists.toLocaleString()}</b> artists</span>
         </div>
-        <p class="dim small mono" style="margin-top:6px">${from}${from === to ? "" : " → " + to}</p>
+        <p class="dim small mono" style="margin-top:6px">${month(from)}${from === to ? "" : " → " + month(to)}</p>
       </div>
+      <div class="insights">${insights.map(([k, v]) => `<div><span>${k}</span><p>${v}</p></div>`).join("")}</div>
+      ${t.eras && t.eras.length > 1 ? `<div class="block"><h2>Your eras</h2>
+        <p class="dim">Each era is named for the tags that were furthest above your usual mix, with the artists who defined it.</p>
+        <div class="eras">${t.eras.map((e, i) => `<div class="${i === t.eras.length - 1 ? "now" : ""}" style="flex-grow:${quarters(e.start, e.end)}">
+          <span class="mono">${quarter(e.start)} → ${i === t.eras.length - 1 ? "now" : quarter(e.end)}</span>
+          <b>${e.tags.map(esc).join(" × ")}</b>
+          <span>${e.artists.map(esc).join(", ")}</span></div>`).join("")}</div></div>` : ""}
       <div class="split">
-        <div class="block"><h2>Hours per month</h2><div class="chart-box"><canvas id="c-hours" role="img" aria-label="Listening hours per month"></canvas></div></div>
-        <div class="block"><h2>New artists per month</h2><div class="chart-box"><canvas id="c-disc" role="img" aria-label="New artists discovered per month"></canvas></div></div>
+        <div class="block"><h2>Peak: ${month(t.months[peakI])}, ${Math.round(t.hours[peakI])} hours</h2>
+          <p class="dim">Hours of music per month, with a 3-month average.</p>
+          <div class="chart-box"><canvas id="c-hours" role="img" aria-label="Listening hours per month. Peak ${month(t.months[peakI])}, ${t.hours[peakI]} hours"></canvas></div></div>
+        <div class="block"><h2>Most discovery: ${month(t.months[discI])}</h2>
+          <p class="dim">Artists you played for the first time, per month.</p>
+          <div class="chart-box"><canvas id="c-disc" role="img" aria-label="New artists per month. Most in ${month(t.months[discI])}, ${t.discovered[discI]}"></canvas></div></div>
       </div>
-      ${t.drift ? `<div class="block"><h2>Taste drift</h2><p class="dim">Share of your listening by tag, per quarter, from the tags of your top artists.</p>
-        <div class="chart-box tall"><canvas id="c-drift" role="img" aria-label="Tag share per quarter"></canvas></div></div>`
+      ${ms ? `<div class="block"><h2>${mainstreamLine(ms, true)}</h2>
+        <p class="dim">Last.fm listeners of your typical artist (the hours-weighted median over the 12 months up to each quarter). Lower means further from the mainstream.</p>
+        <div class="chart-box"><canvas id="c-main" role="img" aria-label="Listeners of your typical artist per quarter"></canvas></div></div>` : ""}
+      ${drift.length ? `<div class="block"><h2>${driftTitle(drift)}</h2>
+        <p class="dim">Share of your listening per tag, each quarter, on the same scale. Change compares your first and latest year.</p>
+        <div class="multiples">${drift.map((d, i) => `<div><div class="mh"><b>${esc(d.tag)}</b><span class="mono ${d.delta > 0 ? "up" : ""}">${d.delta > 0 ? "+" : ""}${d.delta} pts</span></div>
+          <div class="mini"><canvas id="c-tag-${i}" role="img" aria-label="${esc(d.tag)}: ${d.first}% to ${d.last}% of your listening"></canvas></div></div>`).join("")}</div></div>`
         : t.drift_note ? `<div class="block"><h2>Taste drift</h2><p class="dim">${esc(t.drift_note)}</p></div>` : ""}
-      <div class="block"><h2>When you listen</h2><p class="dim">Hours by weekday and hour, local time.</p>
-        <div class="heat">${t.heatmap.map((row, d) => `<span class="lab">${days[d]}</span>` + row.map((h, hr) =>
-          `<div title="${days[d]} ${hr}:00, ${h} h" style="background: rgba(191,227,90,${(0.04 + 0.96 * h / max).toFixed(2)})"></div>`).join("")).join("")}
+      ${t.lost && t.lost.artists.length ? `<div class="block"><h2>Lost loves</h2>
+        <p class="dim">Artists you played for 10+ hours in a year and have barely touched in your latest year. The line is hours per year, ${t.lost.years[0]} to ${t.lost.years[t.lost.years.length - 1]}.</p>
+        <div class="hscroll">${t.lost.artists.map((a) => card(a, `<p class="why">${a.peak_hours} h in ${a.peak_year}, ${a.recent_hours} h in your latest year</p>
+          ${spark(a.yearly)}<p class="meta">Last played ${month(a.last_played.slice(0, 7))}</p>`)).join("")}</div></div>` : ""}
+      <div class="block"><h2>You listen most on ${days[hd]}s around ${hh}:00</h2><p class="dim">Hours by weekday and hour, your local time.</p>
+        <div class="heat">${t.heatmap.map((row, d) => `<span class="lab">${days[d].slice(0, 3)}</span>` + row.map((h, hr) =>
+          `<div title="${days[d]} ${hr}:00, ${h} h" class="${d === hd && hr === hh ? "peak" : ""}" style="background: rgba(191,227,90,${(0.04 + 0.96 * h / max).toFixed(2)})"></div>`).join("")).join("")}
           <span></span>${Array.from({ length: 24 }, (_, i) => `<span class="lab">${i % 6 ? "" : i}</span>`).join("")}
-        </div></div>
+        </div>
+        <div class="heat-key"><span>Less</span><i></i><span>More</span><span class="mono">up to ${max} h</span></div></div>
       <div class="block"><h2>Top artists by year</h2><div class="years">${Object.entries(t.top_by_year).reverse().map(([y, list]) =>
         `<div><b>${y}</b><ol>${list.map(([a, h]) => `<li>${esc(a)}<span class="mono">${h}h</span><button class="hide" data-nm="${esc(a)}" data-hidden="true" aria-label="Hide ${esc(a)}: not music" title="Not music? Hide it">×</button></li>`).join("")}</ol></div>`).join("")}</div></div>`;
     reveal(body);
 
     const axes = { x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkipPadding: 16 } }, y: { grid, beginAtZero: true, border: { display: false } } };
-    chart("c-hours", { type: "bar", data: { labels: t.months, datasets: [{ label: "Hours", data: t.hours,
-      backgroundColor: ACCENT, hoverBackgroundColor: "#CDEB72", borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: "bottom", maxBarThickness: 28 }] },
-      options: { scales: axes, plugins: { legend: { display: false } } } });
-    chart("c-disc", { type: "line", data: { labels: t.months, datasets: [{ label: "New artists", data: t.discovered,
-      borderColor: ACCENT, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: ACCENT }] },
+    const legend = { display: true, position: "top", align: "end", labels: { boxWidth: 10, boxHeight: 10, padding: 14 } };
+    // Emphasis: the peak month in the accent, the rest muted, so the title's claim is visible at a glance
+    chart("c-hours", { data: { labels: t.months.map(month), datasets: [
+      { type: "line", label: "3-month average", data: avg3, borderColor: "#ECE9E2", borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.35, order: 0 },
+      { type: "bar", label: "Hours", data: t.hours, order: 1, backgroundColor: t.hours.map((_, i) => i === peakI ? ACCENT : "rgba(191,227,90,.38)"),
+        hoverBackgroundColor: ACCENT, borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: "bottom", maxBarThickness: 28 }] },
+      options: { scales: axes, interaction: { mode: "index", intersect: false }, plugins: { legend } } });
+    chart("c-disc", { type: "line", data: { labels: t.months.map(month), datasets: [{ label: "New artists", data: t.discovered,
+      borderColor: ACCENT, borderWidth: 2, pointRadius: t.discovered.map((_, i) => i === discI ? 5 : 0), pointBackgroundColor: ACCENT,
+      pointBorderColor: "#0E0E0C", pointBorderWidth: 2, pointHoverRadius: 5, pointHoverBackgroundColor: ACCENT }] },
       options: { scales: axes, interaction: { mode: "index", intersect: false }, plugins: { legend: { display: false } } } });
-    if (t.drift) chart("c-drift", { type: "line", data: { labels: t.drift.quarters, datasets: t.drift.tags.map((tag, i) => ({
-        label: tag, data: t.drift.share[tag], fill: true, backgroundColor: SERIES[i] + "d9", borderColor: "#0E0E0C",
-        borderWidth: 2, pointRadius: 0, tension: 0.3 })) },
-      options: { scales: { x: axes.x, y: { ...axes.y, stacked: true, max: 100, ticks: { callback: (v) => v + "%" } } },
+    if (ms) chart("c-main", { type: "line", data: { labels: ms.quarters.map(quarter), datasets: [{ label: "Typical artist's listeners",
+      data: ms.listeners, borderColor: ACCENT, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: ACCENT, cubicInterpolationMode: "monotone" }] },
+      options: { scales: { x: axes.x, y: { type: "logarithmic", grid, border: { display: false }, ticks: { callback: (v) => [1, 2, 5].includes(+String(v)[0]) ? fmt(v) : "" } } },
         interaction: { mode: "index", intersect: false },
-        plugins: { legend: { position: "bottom", labels: { boxWidth: 10, boxHeight: 10, padding: 16 } },
-          tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${c.parsed.y}%` } } } } });
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${fmt(c.parsed.y)} listeners` } } } } });
+    const top = Math.max(...drift.flatMap((d) => d.share));  // one scale for every panel, so they compare honestly
+    drift.forEach((d, i) => chart(`c-tag-${i}`, { type: "line", data: { labels: t.drift.quarters.map(quarter), datasets: [{ label: d.tag,
+      data: d.share, borderColor: ACCENT, borderWidth: 2, fill: true, backgroundColor: "rgba(191,227,90,.12)", pointRadius: 0,
+      pointHoverRadius: 4, pointHoverBackgroundColor: ACCENT, tension: 0.35 }] },
+      options: { scales: { x: { display: false }, y: { display: false, min: 0, max: top } }, interaction: { mode: "index", intersect: false },
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${c.parsed.y}% of your listening` } } } } }));
   }, null, null, { tasks: ["trends"], idle: "Crunching your history" });
 }
 
@@ -675,6 +794,20 @@ $("obscurity").oninput = updateObscurityLabel;
 // cached, so overlapping requests are unlikely; add one if reports show otherwise.
 $("obscurity").onchange = runSimilar;
 updateObscurityLabel();
+
+// ---- songs you've missed by artists you already play
+const trackUrl = (artist, track) => "https://open.spotify.com/search/" + encodeURIComponent(`${artist} ${track}`);
+function loadDeepCuts() {
+  const out = $("deep-body");
+  out.innerHTML = `<div class="hscroll">${skeleton(5)}</div>`;
+  return run("deep-status", "Checking which of their best-known songs you've heard…", async () => {
+    const rows = await api("/api/deep-cuts");
+    out.innerHTML = rows.length ? `<div class="hscroll">${rows.map((a) => card(a, `<p class="meta">You've heard ${a.heard} of their top ${a.of}</p>
+      <ol class="tracks">${a.tracks.map((t) => `<li><a href="${trackUrl(a.name, t)}" target="_blank" rel="noopener">${esc(t)}</a></li>`).join("")}</ol>`)).join("")}</div>`
+      : `<div class="empty">You've heard the best-known songs of all your top artists. Impressive.</div>`;
+    reveal(out);
+  }, out, null, { tasks: ["deepcuts", "cards"] });
+}
 
 // ---- blends
 const picked = new Set();

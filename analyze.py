@@ -120,11 +120,14 @@ def lost_loves(per_year, recent, last_played, k=12, min_peak=10):
     return {"years": years, "artists": sorted(out, key=lambda r: -r["peak_hours"])[:k]}
 
 
-def mainstream(by_quarter, listeners, min_hours=5):
-    """Per quarter, the Last.fm listener count of your 'typical' artist: the hours-weighted median over the
-    artists we have listener counts for. Lower means you were listening further from the mainstream."""
+def mainstream(by_quarter, listeners, min_hours=5, window=4):
+    """Per quarter, the Last.fm listener count of your 'typical' artist over the trailing 12 months: the
+    hours-weighted median over the artists we have listener counts for. Lower = further from the mainstream.
+    A single quarter swung 5x on one binge (and the latest quarter is often partial), hence the window."""
     quarters, values = [], []
-    for q, cnt in sorted(by_quarter.items()):
+    qs = sorted(by_quarter)
+    for i, q in enumerate(qs):
+        cnt = sum((by_quarter[k] for k in qs[max(0, i - window + 1):i + 1]), Counter())
         rows = sorted((listeners[a], h) for a, h in cnt.items() if listeners.get(a))
         total = sum(h for _, h in rows)
         if total < min_hours:  # too little tagged listening that quarter for a stable number

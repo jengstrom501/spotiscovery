@@ -142,6 +142,10 @@ def feature_artist_image_pick():
         sp.connected = lambda: False  # export-only users get Deezer photos, but not Deezer's blank default
         requests.get = lambda *a, **k: Deezer([{"name": "The Hum", "picture_xl": "https://e-cdns/artist/abc/1000x1000.jpg"}])
         assert sp.artist_card("Hum")["image"] == "https://e-cdns/artist/abc/1000x1000.jpg"
+        # Several artists share a name: take the most-followed (the tiny "Home" had a stock silhouette)
+        requests.get = lambda *a, **k: Deezer([{"name": "Home", "picture_xl": "https://e-cdns/artist/tiny/x.jpg", "nb_fan": 35},
+                                               {"name": "Home", "picture_xl": "https://e-cdns/artist/real/x.jpg", "nb_fan": 1955}])
+        assert sp.artist_card("Home")["image"] == "https://e-cdns/artist/real/x.jpg"
         requests.get = lambda *a, **k: Deezer([{"name": "Duster", "picture_xl": "https://e-cdns/artist//1000x1000.jpg"}])
         assert sp.artist_card("Duster")["image"] is None
     finally:

@@ -123,20 +123,22 @@ def _sync(max_saved):
     return snap
 
 
-def _match(items, name):
-    """The search result that is really this artist (search ranks popular near-misses first)."""
+def _match(items, name, fans=None):
+    """The search result that is really this artist (search ranks popular near-misses first). When several share
+    the name ("Home" x5 on Deezer), fans picks the most-followed one, since that's who Last.fm meant."""
     want = store.norm_loose(name)
-    return next((a for a in items if store.norm_loose(a["name"]) == want), None)
+    hits = [a for a in items if store.norm_loose(a["name"]) == want]
+    return max(hits, key=fans) if hits and fans else (hits[0] if hits else None)
 
 
 def deezer_image(name):
     """Fallback artist photo from Deezer's public search (no key). None if Deezer only has its blank default."""
     try:
-        items = requests.get("https://api.deezer.com/search/artist", params={"q": name, "limit": 5},
+        items = requests.get("https://api.deezer.com/search/artist", params={"q": name, "limit": 10},
                              timeout=10).json().get("data", [])
     except (requests.RequestException, ValueError):
         return None
-    pic = (_match(items, name) or {}).get("picture_xl")
+    pic = (_match(items, name, fans=lambda a: a.get("nb_fan", 0)) or {}).get("picture_xl")
     return pic if pic and "/artist//" not in pic else None  # empty image hash = Deezer's grey placeholder
 
 
