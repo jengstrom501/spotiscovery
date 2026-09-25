@@ -214,12 +214,32 @@ def explore_range():
     r = explore.explore(request.args.get("start"), request.args.get("end"))
     if "summary" in r:
         r["on_this_day"] = explore.on_this_day()
-        if os.environ.get("LASTFM_API_KEY"):
+        lf = lastfm if os.environ.get("LASTFM_API_KEY") else None
+        if lf:
             try:
-                explore.with_sound(r, lastfm)
+                explore.with_sound(r, lf)
             except Exception as e:  # genres are extra; the listening stats stand on their own
                 r["sound_note"] = f"Genres need Last.fm. {e}"
+        explore.with_albums(r, lf)  # without Last.fm, full listens fall back to 5+ songs in a row
     return jsonify(r)
+
+
+@app.get("/api/compare")
+def compare_periods():
+    a = request.args
+    r = explore.compare(a.get("a_start"), a.get("a_end"), a.get("b_start"), a.get("b_end"),
+                        lastfm if os.environ.get("LASTFM_API_KEY") else None)
+    return jsonify(r), (400 if "error" in r else 200)
+
+
+@app.get("/api/song")
+def song_page():
+    a = request.args
+    r = explore.song(a.get("artist", ""), a.get("track", ""), lastfm if os.environ.get("LASTFM_API_KEY") else None,
+                     a.get("start"), a.get("end"))
+    if "error" not in r:
+        r.update(spotify.artist_card(r["artist"]))  # the artist's photo heads the song page
+    return jsonify(r), (404 if "error" in r else 200)
 
 
 @app.get("/api/artist")

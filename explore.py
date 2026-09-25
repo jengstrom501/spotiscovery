@@ -24,12 +24,17 @@ def plays():
         for ts, *rest in raw:
             dt = datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone()
             rows.append(P(dt, dt.date(), *rest))
-        first_artist, first_track = {}, {}
-        for p in rows:
+        first_artist, first_track, song_plays, country_h = {}, {}, Counter(), Counter()
+        keys = [store.track_key(p.track or "") for p in rows]  # song identity, versions merged ("(Remastered)")
+        for p, k in zip(rows, keys):
             first_artist.setdefault(p.artist, p.day)
-            first_track.setdefault((p.artist, store.track_key(p.track or "")), p.day)
-        _cache.update(v=store.VERSION[0], rows=rows, days=[p.day for p in rows],
-                      first_artist=first_artist, first_track=first_track)
+            first_track.setdefault((p.artist, k), p.day)
+            song_plays[(p.artist, k)] += 1
+            if p.country:
+                country_h[p.country] += p.ms
+        _cache.update(v=store.VERSION[0], rows=rows, days=[p.day for p in rows], keys=keys,
+                      first_artist=first_artist, first_track=first_track, song_plays=song_plays,
+                      home=country_h.most_common(1)[0][0] if country_h else None)
     return _cache
 
 
@@ -221,7 +226,8 @@ def explore(start=None, end=None, today=None):
             after[p.artist] += p.ms / 3.6e6
     discoveries = [{"name": a, "hours": round(artist_h[a], 1), "after": round(after[a], 1), "first": first[a].isoformat()}
                    for a in sorted(new_here, key=lambda a: -artist_h[a])[:12]]
-    fresh = sum(p.ms for p in rows if start <= c["first_track"].get((p.artist, store.track_key(p.track or "")), start) <= end) / 3.6e6
+    keys = c["keys"][bisect_left(c["days"], start):bisect_right(c["days"], end)]  # aligned with rows, precomputed
+    fresh = sum(p.ms for p, k in zip(rows, keys) if start <= c["first_track"][(p.artist, k)] <= end) / 3.6e6
 
     sessions = _sessions(rows)
     lengths = sorted((s[-1].dt - (s[0].dt - timedelta(milliseconds=s[0].ms))).total_seconds() / 60 for s in sessions)
@@ -304,6 +310,8 @@ def explore(start=None, end=None, today=None):
         "phones": sorted(({**e, "first": e["first"].isoformat(), "last": e["last"].isoformat(), "hours": round(e["hours"])}
                           for e in phones.values() if e["hours"] >= 1), key=lambda e: e["first"]),
         "countries": [{"code": k, "hours": round(h, 1), "days": len(country_days[k])} for k, h in countries.most_common(12)],
+        "clock": clock(rows),
+        "travel": travel(c, start, end),
     }
 
 
@@ -444,3 +452,244 @@ def day(d):
          "album": p.album, "minutes": round(p.ms / 60000, 1), "skipped": _is_skip(p), "device": store.device(p.platform),
          "how": STARTS.get(p.start)} for p in rows],
         "sessions": len(_sessions(rows))}
+
+
+# ---- music by the clock: what's distinctive about each part of your day
+PARTS = [("Late night", 0, 5), ("Morning", 5, 12), ("Afternoon", 12, 17), ("Evening", 17, 24)]
+
+
+def clock(rows, top=6):
+    """For each part of the day, the artists and songs you play there far more than usual: their share of that
+    part's listening over their share of all your listening (the "lift"). Ranked by hours x log(lift), so a big
+    artist that leans nocturnal beats a one-off that happened to play once at 3am."""
+    all_h, all_n = Counter(), Counter()
+    for p in rows:
+        all_h[p.artist] += p.ms / 3.6e6
+        all_n[(p.track, p.artist)] += 1
+    total_h, total_n = sum(all_h.values()) or 1, sum(all_n.values()) or 1
+    out = []
+    for name, a, b in PARTS:
+        part = [p for p in rows if a <= p.dt.hour < b]
+        ph, pn = Counter(), Counter()
+        for p in part:
+            ph[p.artist] += p.ms / 3.6e6
+            pn[(p.track, p.artist)] += 1
+        part_h, part_n = sum(ph.values()), sum(pn.values())
+        entry = {"name": name, "from": a, "to": b, "hours": round(part_h, 1),
+                 "share": round(100 * part_h / total_h) if rows else 0, "artists": [], "tracks": []}
+        if part_h >= 0.5:
+            lift = {x: (h / part_h) / (all_h[x] / total_h) for x, h in ph.items() if h >= max(0.25, 0.004 * part_h)}
+            best = sorted((x for x in lift if lift[x] >= 1.4), key=lambda x: -ph[x] * math.log(lift[x]))[:top]
+            entry["artists"] = [{"name": x, "hours": round(ph[x], 1), "lift": round(lift[x], 1),
+                                 "of_theirs": round(100 * ph[x] / all_h[x])} for x in best]
+            tl = {k: (n / part_n) / (all_n[k] / total_n) for k, n in pn.items() if n >= 3 and k[0]}
+            tbest = sorted((k for k in tl if tl[k] >= 1.4), key=lambda k: -pn[k] * math.log(tl[k]))[:5]
+            entry["tracks"] = [{"track": t, "artist": x, "plays": pn[(t, x)], "of_theirs": round(100 * pn[(t, x)] / all_n[(t, x)])}
+                               for t, x in tbest]
+        out.append(entry)
+    night = [p for p in rows if p.dt.hour < 5]
+    latest = max(night, key=lambda p: (p.dt.hour, p.dt.minute), default=None)
+    small = Counter(p.artist for p in rows if 2 <= p.dt.hour < 4)  # the literal 3am slot
+    return {"parts": out, "latest": latest and {"time": latest.dt.strftime("%H:%M"), "day": latest.day.isoformat(),
+                                                "artist": latest.artist, "track": latest.track},
+            "three_am": _top(small, 1)[0] if small else None}
+
+
+# ---- travel: trips abroad, found from the country each play came from
+def travel(c, start, end, gap=3):
+    """Days whose music mostly came from a country other than home, merged into trips (up to `gap` quiet days
+    inside one trip). Home is where you've listened most, all time."""
+    home, rows = c["home"], _slice(c, start, end)
+    by_day, per_country, cdays, cfirst, clast = defaultdict(Counter), Counter(), defaultdict(set), {}, {}
+    for p in rows:
+        if p.country:
+            by_day[p.day][p.country] += p.ms / 3.6e6
+            per_country[p.country] += p.ms / 3.6e6
+            cdays[p.country].add(p.day)
+            cfirst.setdefault(p.country, p.day)
+            clast[p.country] = p.day
+    trips = []
+    for d in sorted(by_day):
+        where = by_day[d].most_common(1)[0][0]
+        if where == home:
+            continue
+        if trips and trips[-1]["code"] == where and (d - trips[-1]["_end"]).days <= gap + 1:
+            trips[-1]["_end"] = d
+        else:
+            trips.append({"code": where, "_start": d, "_end": d})
+    out = []
+    for t in trips:
+        tr = [p for p in _slice(c, t["_start"], t["_end"]) if p.country == t["code"]]
+        songs = Counter((p.track, p.artist) for p in tr if p.track)
+        (track, artist), _ = songs.most_common(1)[0] if songs else ((None, None), 0)
+        out.append({"code": t["code"], "start": t["_start"].isoformat(), "end": t["_end"].isoformat(),
+                    "days": (t["_end"] - t["_start"]).days + 1, "hours": round(hours(tr), 1),
+                    "top_artist": _top(Counter(p.artist for p in tr), 1)[0], "track": track, "track_artist": artist})
+    return {"home": home, "trips": out[::-1],
+            "countries": [{"code": k, "hours": round(h, 1), "days": len(cdays[k]), "first": cfirst[k].isoformat(),
+                           "last": clast[k].isoformat(), "trips": sum(1 for t in out if t["code"] == k)}
+                          for k, h in per_country.most_common()]}
+
+
+# ---- albums: played front to back, or cherry-picked
+def album_runs(rows, gap_min=10):
+    """Back-to-back plays from one album, each starting within gap_min of the last one ending."""
+    runs = []
+    for p in rows:
+        k = (p.album, p.artist) if p.album else None
+        if k and runs and runs[-1][0] == k and (p.dt - timedelta(milliseconds=p.ms)) - runs[-1][1][-1].dt <= timedelta(minutes=gap_min):
+            runs[-1][1].append(p)
+        elif k:
+            runs.append((k, [p]))
+    return runs
+
+
+def albums(rows, lf=None, n=40):
+    """Per album: songs heard of its tracklist, how concentrated your plays are, and "full listens" (runs that
+    covered most of the album). Tracklist sizes come from Last.fm; without them a full listen is 5+ songs in a row."""
+    h, songs, names = Counter(), defaultdict(Counter), {}
+    for p in rows:
+        if p.album:
+            k, tk = (p.album, p.artist), store.track_key(p.track or "")
+            h[k] += p.ms / 3.6e6
+            songs[k][tk] += 1
+            names.setdefault((k, tk), p.track)
+    keys = [k for k, v in h.most_common(n) if v >= 0.5]
+    sizes = {}
+    for k in store.track("explore", keys, "Looking up album tracklists") if lf else []:
+        try:
+            sizes[k] = lf.album_tracks(k[1], k[0])
+        except Exception:  # one odd album name shouldn't sink the section; it falls back to the 5-in-a-row rule
+            sizes[k] = None
+    full, run_hours = Counter(), 0.0
+    for k, run in album_runs(rows):
+        size = sizes.get(k)
+        if size is not None and size < 3:  # singles and 2-song releases aren't albums
+            continue
+        need = max(3, round(0.6 * size)) if size else 5
+        if len({store.track_key(p.track or "") for p in run}) >= need:
+            full[k] += 1
+            run_hours += hours(run)
+    front, cherry = [], []
+    for k in keys:
+        heard, size = len(songs[k]), sizes.get(k)
+        tk, tn = songs[k].most_common(1)[0]
+        top_share = tn / sum(songs[k].values())
+        row = {"album": k[0], "artist": k[1], "hours": round(h[k], 1), "heard": heard, "total": size,
+               "full": full[k], "top_track": names[(k, tk)], "top_share": round(100 * top_share)}
+        if full[k] >= 2:
+            front.append(row)
+        elif (size and size >= 6 and heard / size <= 0.35) or (not size and heard <= 2 and top_share >= 0.7):
+            cherry.append(row)
+    total = hours(rows)
+    return {"front_to_back": sorted(front, key=lambda r: -r["full"])[:8], "cherry_picked": cherry[:8],
+            "album_share": round(100 * run_hours / total) if total else 0, "tracklists": bool(sizes)}
+
+
+def with_albums(r, lf):
+    c = plays()
+    r["albums"] = albums(_slice(c, date.fromisoformat(r["start"]), date.fromisoformat(r["end"])), lf)
+    return r
+
+
+# ---- song pages
+def song(artist_name, track, lf=None, start=None, end=None):
+    """One song's life in your history. Versions with the same core title are merged ("Nights (Remastered)")."""
+    c = plays()
+    rows_all, key = c["rows"], store.track_key(track or "")
+    idx = [i for i, p in enumerate(rows_all) if p.artist == artist_name and c["keys"][i] == key]
+    if not idx:
+        return {"error": f"No plays of {track} by {artist_name}."}
+    mine = [rows_all[i] for i in idx]
+    data_start, data_end = rows_all[0].day, rows_all[-1].day
+    start, end = max(_day(start, data_start), data_start), min(_day(end, data_end), data_end)
+    months, m = [], date(data_start.year, data_start.month, 1)
+    while m <= data_end:
+        months.append(m.isoformat()[:7])
+        m = _add_months(m, 1)
+    per_month, per_day, per_year, skips = Counter(), Counter(), Counter(), Counter()
+    heat = [[0] * 24 for _ in range(7)]
+    for p in mine:
+        per_month[p.dt.strftime("%Y-%m")] += 1
+        per_day[p.day] += 1
+        per_year[p.dt.year] += 1
+        skips[p.dt.year] += _is_skip(p)
+        heat[p.dt.weekday()][p.dt.hour] += 1
+    streak = best = 0
+    prev = None
+    for d in sorted(per_day):
+        streak = streak + 1 if prev and (d - prev).days == 1 else 1
+        best, prev = max(best, streak), d
+    # What you play around it: the song right before and after, when they're in the same listening session
+    before, after = Counter(), Counter()
+    for i in idx:
+        p = rows_all[i]
+        if i > 0:
+            q = rows_all[i - 1]
+            if (p.dt - timedelta(milliseconds=p.ms)) - q.dt <= timedelta(minutes=30) and c["keys"][i - 1] != key:
+                before[(q.track, q.artist)] += 1
+        if i + 1 < len(rows_all):
+            q = rows_all[i + 1]
+            if (q.dt - timedelta(milliseconds=q.ms)) - p.dt <= timedelta(minutes=30) and c["keys"][i + 1] != key:
+                after[(q.track, q.artist)] += 1
+    rank = 1 + sum(1 for v in c["song_plays"].values() if v > len(mine))
+    starts = Counter(STARTS.get(p.start, "Other") for p in mine if p.start)
+    titles = Counter(p.track for p in mine)
+    out = {
+        "artist": artist_name, "track": titles.most_common(1)[0][0], "versions": [t for t, _ in titles.most_common()],
+        "albums": [a for a, _ in Counter(p.album for p in mine if p.album).most_common(3)],
+        "start": start.isoformat(), "end": end.isoformat(),
+        "plays": len(mine), "hours": round(hours(mine), 1), "rank": rank, "days_played": len(per_day),
+        "range_plays": sum(1 for p in mine if start <= p.day <= end),
+        "first": mine[0].day.isoformat(), "last": mine[-1].day.isoformat(),
+        "most_in_a_day": {"day": max(per_day, key=per_day.get).isoformat(), "plays": max(per_day.values())},
+        "longest_streak": best,
+        "months": months, "plays_by_month": [per_month[k] for k in months],
+        "by_year": [{"year": y, "plays": per_year[y], "skip_rate": round(100 * skips[y] / per_year[y])} for y in sorted(per_year)],
+        "skip_rate": round(100 * sum(skips.values()) / len(mine)),
+        "heat": heat,
+        "starts": [[k, round(100 * v / sum(starts.values()))] for k, v in starts.most_common()],
+        "before": [{"track": t, "artist": a, "times": n} for (t, a), n in before.most_common(5) if n >= 2],
+        "after": [{"track": t, "artist": a, "times": n} for (t, a), n in after.most_common(5) if n >= 2],
+    }
+    if lf:
+        try:
+            info = lf.track_info(artist_name, out["track"]) or {}
+            out["listeners"] = info.get("listeners")
+            out["tags"] = [t for t in info.get("tags", []) if recommend.good_tag(t, artist_name)][:5]
+        except Exception as e:  # Last.fm is extra here
+            out["lastfm_note"] = str(e)
+    return out
+
+
+# ---- compare two periods side by side
+def compare(a_start, a_end, b_start, b_end, lf=None):
+    A, B = explore(a_start, a_end), explore(b_start, b_end)
+    for r in (A, B):
+        if "error" in r or r.get("empty"):
+            return {"error": r.get("error", "No listening data yet.")}
+    c = plays()
+    ra = _slice(c, date.fromisoformat(A["start"]), date.fromisoformat(A["end"]))
+    rb = _slice(c, date.fromisoformat(B["start"]), date.fromisoformat(B["end"]))
+    ha, hb = Counter(), Counter()
+    for p in ra:
+        ha[p.artist] += p.ms / 3.6e6
+    for p in rb:
+        hb[p.artist] += p.ms / 3.6e6
+    ta, tb = sum(ha.values()) or 1, sum(hb.values()) or 1
+    # Overlap of the two mixes: each shared artist counts at the smaller of its two shares.
+    # 100% = the same mix in both periods, 0% = nothing in common.
+    overlap = sum(min(ha[x] / ta, hb[x] / tb) for x in set(ha) & set(hb))
+    both = sorted((x for x in set(ha) & set(hb) if ha[x] >= 0.5 and hb[x] >= 0.5), key=lambda x: -min(ha[x], hb[x]))[:10]
+    out = {"a": A, "b": B, "overlap": round(100 * overlap),
+           "both": [{"name": x, "a": round(ha[x], 1), "b": round(hb[x], 1)} for x in both],
+           "only_a": [{"name": x, "hours": round(h, 1)} for x, h in ha.most_common(200) if hb[x] < 0.1][:10],
+           "only_b": [{"name": x, "hours": round(h, 1)} for x, h in hb.most_common(200) if ha[x] < 0.1][:10]}
+    if lf:
+        try:
+            sa, sb = sound(ra, lf), sound(rb, lf, label="Reading the genres of the second period")
+            tags = sorted(set(sa) | set(sb), key=lambda t: -(sa.get(t, 0) + sb.get(t, 0)))[:10]
+            out["sound"] = [{"tag": t, "a": round(sa.get(t, 0), 1), "b": round(sb.get(t, 0), 1)} for t in tags]
+        except Exception as e:  # genres are extra
+            out["sound_note"] = f"Genres need Last.fm. {e}"
+    return out

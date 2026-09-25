@@ -1,5 +1,6 @@
 """Cached Last.fm client. Similarity and tags come from here, since Spotify removed those APIs."""
 import os
+import re
 import threading
 import time
 
@@ -83,6 +84,30 @@ def top_tracks(artist, limit=20):
         d = _call("artist.getTopTracks", artist=artist, limit=limit)
         return [t["name"] for t in d.get("toptracks", {}).get("track", [])]
     return store.cached(_key("toptracks", artist, limit), fetch)
+
+
+def album_tracks(artist, album):
+    """How many songs the album has, or None if Last.fm doesn't know it. Spotify album names often carry a suffix
+    Last.fm doesn't ("Discovery (Deluxe Edition)", "Abbey Road - Remastered 2019"), so that's retried without it."""
+    def fetch():
+        for name in dict.fromkeys([album, re.sub(r"\s*(\(.*?\)|\[.*?\]|\s-\s.*)$", "", album)]):
+            tracks = _call("album.getInfo", artist=artist, album=name).get("album", {}).get("tracks", {}).get("track")
+            if tracks:
+                return {"n": len(tracks) if isinstance(tracks, list) else 1}
+        return {"n": None}
+    return store.cached(_key("albumtracks", artist, album), fetch)["n"]
+
+
+def track_info(artist, track):
+    """{'listeners', 'tags'} for one song, or None."""
+    def fetch():
+        t = _call("track.getInfo", artist=artist, track=track).get("track")
+        if not t:
+            return {"missing": True}
+        return {"listeners": int(t.get("listeners") or 0),
+                "tags": [x["name"].lower() for x in (t.get("toptags") or {}).get("tag", [])]}
+    v = store.cached(_key("trackinfo", artist, track), fetch)
+    return None if v.get("missing") else v
 
 
 def info(artist):

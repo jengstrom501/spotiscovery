@@ -320,6 +320,54 @@ def feature_explore_periods():
         assert store.device(raw) == name, (raw, store.device(raw))
 
 
+def feature_clock_travel_albums_songs_compare():
+    # Features: music by the clock, trips abroad, front-to-back vs cherry-picked albums, song pages, compare periods.
+    # Times are built in local time (what the app shows), then stored as UTC like Spotify's export.
+    from datetime import date, datetime, timedelta, timezone
+    ex, store = deep_cuts.explore, deep_cuts.store
+
+    def play(local, artist, track, minutes=4, country="US", album=None):
+        ts = (local.astimezone(timezone.utc) + timedelta(minutes=minutes)).strftime("%Y-%m-%dT%H:%M:%SZ")  # ts = end
+        return {"ts": ts, "master_metadata_album_artist_name": artist, "master_metadata_track_name": track,
+                "ms_played": minutes * 60_000, "conn_country": country, "master_metadata_album_album_name": album}
+    rows = []
+    for d in range(1, 21):  # 20 days at home: afternoons of Day Band, 3am of Night Owl
+        rows += [play(datetime(2032, 1, d, 14, 0), "Day Band", "Sunny", 60), play(datetime(2032, 1, d, 3, 0), "Night Owl", "Loop")]
+    rows += [play(datetime(2032, 1, 21, 3, 0) + timedelta(minutes=5 * i), "Night Owl", t) for i, t in enumerate(["Intro", "Loop"] * 2)]
+    for d in (10, 11, 12, 14):  # a trip to Denmark with a quiet day in the middle
+        rows.append(play(datetime(2032, 2, d, 12, 0), "Trip Band", "Copenhagen", 30, "DK"))
+    for rep in range(2):  # an album played front to back twice, and one where only the hit gets played
+        start = datetime(2032, 3, 1 + rep, 18, 0)
+        rows += [play(start + timedelta(minutes=5 * i), "LP Band", f"Side {i}", 4, album="The LP") for i in range(6)]
+    rows += [play(datetime(2032, 3, 5 + i, 20, 0), "Hit Band", "The Hit", 4, album="Greatest Hits") for i in range(8)]
+    rows.append(play(datetime(2032, 4, 1, 12, 0), "Day Band", "Later", 60))  # data continues after the ranges
+    store.add_plays(rows)
+
+    c = ex.plays()
+    jan = ex._slice(c, date(2032, 1, 1), date(2032, 1, 31))
+    night = next(p for p in ex.clock(jan)["parts"] if p["name"] == "Late night")
+    assert night["artists"][0]["name"] == "Night Owl" and night["artists"][0]["of_theirs"] == 100, night
+    assert ex.clock(jan)["three_am"] == "Night Owl"
+
+    trips = ex.travel(c, date(2032, 1, 1), date(2032, 3, 31))
+    assert trips["home"] == "US" and [(t["code"], t["start"], t["end"]) for t in trips["trips"]] == [("DK", "2032-02-10", "2032-02-14")], trips
+
+    class LF:
+        def album_tracks(self, artist, album): return {"The LP": 8, "Greatest Hits": 12}.get(album)
+    al = ex.albums(ex._slice(c, date(2032, 3, 1), date(2032, 3, 31)), LF())
+    assert [(a["album"], a["full"]) for a in al["front_to_back"]] == [("The LP", 2)], al  # 6 of 8 in a row = full listen
+    assert [(a["album"], a["heard"], a["total"]) for a in al["cherry_picked"]] == [("Greatest Hits", 1, 12)], al
+
+    s = client.get("/api/song", query_string={"artist": "Night Owl", "track": "Loop"}).get_json()
+    assert s["plays"] == 22 and s["longest_streak"] == 21 and s["before"] == [{"track": "Intro", "artist": "Night Owl", "times": 2}], s
+    assert client.get("/api/song", query_string={"artist": "Nobody", "track": "x"}).status_code == 404
+
+    cmp = client.get("/api/compare", query_string={"a_start": "2032-01-01", "a_end": "2032-01-31",
+                                                   "b_start": "2032-03-01", "b_end": "2032-03-31"}).get_json()
+    assert cmp["overlap"] == 0 and {x["name"] for x in cmp["only_a"]} == {"Day Band", "Night Owl"}, cmp["overlap"]
+    assert cmp["a"]["summary"]["plays"] == 44 and cmp["b"]["start"] == "2032-03-01"
+
+
 def feature_reimport_fills_new_fields():
     # Feature: plays imported before albums/devices were stored get them from a re-import, without duplicating
     store = deep_cuts.store

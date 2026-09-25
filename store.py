@@ -1,4 +1,5 @@
 """SQLite storage: plays from the Spotify export, a key/value table, and an API response cache."""
+import functools
 import json
 import os
 import re
@@ -151,6 +152,7 @@ DEVICES = [("Car", r"android_auto|carplay|\bcar\b|automotive"), ("TV", r"(^|[^a-
            ("Linux", r"linux")]
 
 
+@functools.lru_cache(maxsize=None)  # a few hundred distinct platform strings across 150k plays
 def device(platform):
     p = (platform or "").lower()
     if not p or p in ("not_applicable", "unknown"):
