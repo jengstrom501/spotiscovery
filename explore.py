@@ -478,12 +478,15 @@ def clock(rows, top=6):
         entry = {"name": name, "from": a, "to": b, "hours": round(part_h, 1),
                  "share": round(100 * part_h / total_h) if rows else 0, "artists": [], "tracks": []}
         if part_h >= 0.5:
+            # A slot holding 37% of your music can't give anyone much more than 2.7x, so the bar for "distinctive"
+            # scales with the slot: 1.4x for small slots, down to 1.2x for the big ones.
+            bar = max(1.2, min(1.4, 1 + 0.4 * (1 - 2 * part_h / total_h)))
             lift = {x: (h / part_h) / (all_h[x] / total_h) for x, h in ph.items() if h >= max(0.25, 0.004 * part_h)}
-            best = sorted((x for x in lift if lift[x] >= 1.4), key=lambda x: -ph[x] * math.log(lift[x]))[:top]
+            best = sorted((x for x in lift if lift[x] >= bar), key=lambda x: -ph[x] * math.log(lift[x]))[:top]
             entry["artists"] = [{"name": x, "hours": round(ph[x], 1), "lift": round(lift[x], 1),
                                  "of_theirs": round(100 * ph[x] / all_h[x])} for x in best]
             tl = {k: (n / part_n) / (all_n[k] / total_n) for k, n in pn.items() if n >= 3 and k[0]}
-            tbest = sorted((k for k in tl if tl[k] >= 1.4), key=lambda k: -pn[k] * math.log(tl[k]))[:5]
+            tbest = sorted((k for k in tl if tl[k] >= bar), key=lambda k: -pn[k] * math.log(tl[k]))[:5]
             entry["tracks"] = [{"track": t, "artist": x, "plays": pn[(t, x)], "of_theirs": round(100 * pn[(t, x)] / all_n[(t, x)])}
                                for t, x in tbest]
         out.append(entry)
@@ -544,7 +547,7 @@ def album_runs(rows, gap_min=10):
     return runs
 
 
-def albums(rows, lf=None, n=40):
+def albums(rows, lf=None, n=60):
     """Per album: songs heard of its tracklist, how concentrated your plays are, and "full listens" (runs that
     covered most of the album). Tracklist sizes come from Last.fm; without them a full listen is 5+ songs in a row."""
     h, songs, names = Counter(), defaultdict(Counter), {}
@@ -579,8 +582,8 @@ def albums(rows, lf=None, n=40):
                "full": full[k], "top_track": names[(k, tk)], "top_share": round(100 * top_share)}
         if full[k] >= 2:
             front.append(row)
-        elif (size and size >= 6 and heard / size <= 0.35) or (not size and heard <= 2 and top_share >= 0.7):
-            cherry.append(row)
+        elif (size and size >= 5 and (heard / size <= 0.4 or top_share >= 0.6)) or (not size and heard <= 2 and top_share >= 0.7):
+            cherry.append(row)  # few of its songs, or one song carrying most of the plays
     total = hours(rows)
     return {"front_to_back": sorted(front, key=lambda r: -r["full"])[:8], "cherry_picked": cherry[:8],
             "album_share": round(100 * run_hours / total) if total else 0, "tracklists": bool(sizes)}

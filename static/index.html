@@ -276,7 +276,7 @@
   ol.rank li::before { content: counter(r); font: 12px var(--mono); color: var(--fg-dim); }
   ol.rank li.extra { display: none; }
   ol.rank.all li.extra { display: grid; }
-  ol.rank .nm { min-width: 0; overflow-wrap: anywhere; }
+  ol.rank .nm { min-width: 0; overflow-wrap: break-word; }
   ol.rank .tr { display: block; color: var(--fg); }
   ol.rank .tr + button.link { color: var(--fg-dim); font-size: 13px; }
   ol.rank button.link, ul.plain button.link { text-decoration: none; }
@@ -313,6 +313,41 @@
   ul.otd li { justify-content: flex-start; gap: 16px; }
   ul.otd li > button { font-family: var(--mono); min-width: 44px; }
   ul.otd li > span { color: var(--fg-dim); }
+
+  /* ---- clock, albums, travel, compare */
+  .clock { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px; margin-top: 18px; }
+  .clock h3 { display: grid; gap: 2px; }
+  .tops.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  ol.rank .sub, ol.trips .sub { display: block; font-size: 12.5px; color: var(--fg-dim); margin-top: 2px; }
+  ol.rank .sub button.link, ol.trips .sub button.link { font-size: 12.5px; }
+  .map-box { margin-top: 18px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface); padding: 12px; min-height: 120px; }
+  .map { display: block; width: 100%; height: auto; }
+  .map path { stroke: var(--bg); stroke-width: .5; }
+  .map path.hit:hover { stroke: var(--fg); stroke-width: 1.2; }
+  ol.trips { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; font-size: 14px; }
+  ol.trips li { display: grid; gap: 2px; }
+  ol.trips li.extra { display: none; }
+  ol.trips.all li.extra { display: grid; }
+  ol.trips em { font-style: normal; font-size: 12px; color: var(--fg-dim); }
+  ol.trips button.mono { font-size: 12.5px; color: var(--fg-dim); text-decoration: none; justify-self: start; }
+  .vs-row { width: 100%; }
+  .vs-word { color: var(--fg-dim); font-weight: 500; }
+  b.hi { color: var(--accent); }
+  table.cmp { width: 100%; max-width: 860px; border-collapse: collapse; margin-top: 16px; font-size: 14px; }
+  table.cmp th, table.cmp td { text-align: left; padding: 9px 12px 9px 0; border-bottom: 1px solid var(--line-soft); vertical-align: baseline; }
+  table.cmp thead th { font: 12px var(--mono); color: var(--fg-dim); text-transform: uppercase; letter-spacing: .04em; }
+  table.cmp tbody th { font-weight: 500; color: var(--fg-dim); }
+  table.cmp td:nth-child(2) { color: var(--fg-dim); }
+  table.cmp td:nth-child(3) { font-weight: 600; }
+  .cmp-legend { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 12px; font-size: 13px; color: var(--fg-dim); }
+  .cmp-legend span { display: inline-flex; align-items: center; gap: 8px; }
+  .cmp-legend i, i.dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
+  i.dot { margin-right: 8px; }
+  ul.pairs { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 12px; max-width: 760px; font-size: 14px; }
+  ul.pairs li { display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+  ul.pairs li div { display: grid; gap: 3px; }
+  ul.pairs li div i { display: block; height: 6px; border-radius: 3px; min-width: 2px; }
+  ul.pairs em { font-style: normal; font-size: 12px; color: var(--fg-dim); }
 
   /* ---- drill-down dialogs: a panel sliding in from the right */
   dialog.drawer { margin: 0 0 0 auto; height: 100dvh; max-height: none; width: min(860px, 100vw); padding: 0; border: 0;
@@ -389,7 +424,8 @@
   @media (max-width: 900px) {
     .split, .setup-grid { grid-template-columns: 1fr; gap: 0; }
     .recap { grid-template-columns: 1fr; gap: 28px; }
-    .daily, .tops { grid-template-columns: 1fr; gap: 24px; }
+    .daily, .tops, .tops.two { grid-template-columns: 1fr; gap: 24px; }
+    .clock { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .bento { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     dialog.drawer .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .setup-grid > div:last-child { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); margin-top: 28px; padding-top: 24px; }
@@ -412,6 +448,11 @@
     .multiples { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .recap-stage { padding: 14px; }
     .period { position: static; margin-top: -20px; gap: 8px; }  /* sticky would eat a quarter of a phone screen */
+    .clock { grid-template-columns: 1fr; }
+    ul.pairs li { grid-template-columns: 90px minmax(0, 1fr); }
+    ul.pairs em { grid-column: 2; }
+    table.cmp { font-size: 13px; }
+    table.cmp th, table.cmp td { padding-right: 8px; }
     .pickers .custom { width: 100%; }
     .bento { grid-template-columns: 1fr; }
     .cell.wide { grid-column: auto; }
@@ -518,6 +559,16 @@
         <select id="p-era" aria-label="Era"><option value="">Era</option></select>
         <span class="custom"><input type="date" id="p-start" aria-label="From"><span class="dim">to</span><input type="date" id="p-end" aria-label="To">
           <button id="p-apply">Apply</button></span>
+        <button id="compare-on" aria-expanded="false" aria-controls="vs-row">Compare with…</button>
+      </div>
+      <div class="pickers vs-row" id="vs-row" hidden>
+        <span class="kicker">Compared with</span>
+        <select id="v-year" aria-label="Compare with year"><option value="">Year</option></select>
+        <input type="month" id="v-month" aria-label="Compare with month">
+        <select id="v-era" aria-label="Compare with era"><option value="">Era</option></select>
+        <span class="custom"><input type="date" id="v-start" aria-label="Compare from"><span class="dim">to</span><input type="date" id="v-end" aria-label="Compare to">
+          <button id="v-apply">Apply</button></span>
+        <button id="compare-off">Stop comparing</button>
       </div>
     </div>
     <p class="status" id="explore-status" role="status" style="margin-top:14px"></p>
@@ -532,6 +583,11 @@
   <dialog id="day-dlg" class="drawer" aria-labelledby="day-dlg-title">
     <button class="close" data-close aria-label="Close">×</button>
     <div id="day-body"></div>
+  </dialog>
+  <dialog id="song-dlg" class="drawer" aria-labelledby="song-dlg-title">
+    <button class="close" data-close aria-label="Close">×</button>
+    <p class="status" id="song-status" role="status"></p>
+    <div id="song-body"></div>
   </dialog>
 
   <section class="wrap tab" id="similar" hidden>
@@ -754,6 +810,7 @@ document.addEventListener("click", async (e) => {
   b.disabled = true;
   await api("/api/not-music", { method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ artist: b.dataset.nm, hidden: b.dataset.hidden === "true" }) }).catch((err) => alert(err.message));
+  document.querySelectorAll("dialog[open]").forEach((d) => d.close());  // the artist page you hid from is gone now
   await loadStatus();
   refreshTabs();
 });
@@ -794,7 +851,7 @@ $("files").onchange = async (e) => {
 
 // ---- explore: every stat for any period, with drill-downs into artists and days
 let lastTrends = null;
-const ex = { start: null, end: null, data: null };
+const ex = { start: null, end: null, data: null, vs: null };
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const pad2 = (n) => String(n).padStart(2, "0");
 const isoLocal = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
@@ -816,30 +873,73 @@ function rangeLabel(a, b) {
   return `${shortDay(a)} to ${shortDay(b)}`;
 }
 const artistBtn = (name) => `<button class="link" data-artist="${esc(name)}">${esc(name)}</button>`;
+// A song title that opens its song page; `tr` keeps the list styling
+const songBtn = (track, artist, cls = "tr") => `<button class="link ${cls}" data-song="${esc(track)}" data-song-artist="${esc(artist)}">${esc(track)}</button>`;
 const dayBtn = (s, text) => `<button class="link" data-day="${s}">${esc(text || shortDay(s))}</button>`;
 
 function goExplore(a, b) {
+  ex.vs = null;  // a drill-down starts a fresh look, not a comparison
   loaded.explore = true;  // the loader would otherwise fire with the old range from the URL
   showTab("explore", false);
   loadExplore(a, b, true);
 }
+// "#explore/A1/A2" or, when comparing, "#explore/A1/A2/vs/B1/B2"
+const exHash = () => `explore/${ex.start}/${ex.end}` + (ex.vs ? `/vs/${ex.vs[0]}/${ex.vs[1]}` : "");
 async function loadExplore(start, end, push = true) {
   if (!start || !end) [start, end] = [addDays(dataEnd(), -364), dataEnd()];  // default: your latest 12 months
-  return run("explore-status", "Crunching…", async () => {
-    const r = await api(`/api/explore?start=${start}&end=${end}`);
-    if (r.empty) {
-      $("explore-body").innerHTML = `<div class="empty">Import your streaming history in Setup to explore it.<br><button onclick="setSetup(true)">Open setup</button></div>`;
-      return;
+  return run("explore-status", ex.vs ? "Comparing…" : "Crunching…", async () => {
+    let r;
+    if (ex.vs) {
+      r = await api(`/api/compare?a_start=${start}&a_end=${end}&b_start=${ex.vs[0]}&b_end=${ex.vs[1]}`);
+      Object.assign(ex, { start: r.a.start, end: r.a.end, data: r.a, vs: [r.b.start, r.b.end] });
+    } else {
+      r = await api(`/api/explore?start=${start}&end=${end}`);
+      if (r.empty) {
+        $("explore-body").innerHTML = `<div class="empty">Import your streaming history in Setup to explore it.<br><button onclick="setSetup(true)">Open setup</button></div>`;
+        return;
+      }
+      if (r.error) throw new Error(r.error);
+      Object.assign(ex, { start: r.start, end: r.end, data: r });
     }
-    if (r.error) throw new Error(r.error);
-    Object.assign(ex, { start: r.start, end: r.end, data: r });
-    const hash = `#explore/${r.start}/${r.end}`;
-    if (location.hash !== hash) (push ? history.pushState : history.replaceState).call(history, null, "", hash);
-    syncPickers(r);
-    renderExplore(r);
+    if (location.hash !== "#" + exHash()) (push ? history.pushState : history.replaceState).call(history, null, "", "#" + exHash());
+    syncPickers(ex.data);
+    syncVs(r.b);
+    ex.vs ? renderCompare(r) : renderExplore(r);
     window.scrollTo({ top: 0 });
   }, null, null, { tasks: ["explore"], idle: "Crunching your history" });
 }
+// The second period's picker mirrors the first; its values show what's being compared against
+function syncVs(b) {
+  $("vs-row").hidden = !ex.vs;
+  $("compare-on").hidden = !!ex.vs;
+  $("compare-on").setAttribute("aria-expanded", !!ex.vs);
+  if (!b) return;
+  const d = ex.data, y0 = +d.data_start.slice(0, 4), y1 = +d.data_end.slice(0, 4), ys = $("v-year");
+  if (ys.options.length < 2) ys.innerHTML += Array.from({ length: y1 - y0 + 1 }, (_, i) => `<option>${y1 - i}</option>`).join("");
+  ys.value = rangeLabel(b.start, b.end) === b.start.slice(0, 4) ? b.start.slice(0, 4) : "";
+  Object.assign($("v-month"), { min: d.data_start.slice(0, 7), max: d.data_end.slice(0, 7),
+    value: b.start.endsWith("-01") && b.end === monthEnd(b.start.slice(0, 7)) ? b.start.slice(0, 7) : "" });
+  for (const id of ["v-start", "v-end"]) Object.assign($(id), { min: d.data_start, max: d.data_end });
+  $("v-start").value = b.start; $("v-end").value = b.end;
+  const sel = $("v-era"), eras = (lastTrends && lastTrends.eras) || [];
+  if (sel.options.length === 1 && eras.length)
+    sel.innerHTML += eras.map((e) => `<option value="${eraRange(e).join("|")}">${esc(e.tags.join(" × "))} (${e.start.slice(0, 4)} to ${e.end.slice(0, 4)})</option>`).join("");
+  sel.value = [...sel.options].some((o) => o.value === `${b.start}|${b.end}`) ? `${b.start}|${b.end}` : "";
+}
+const compareWith = (a, b) => { ex.vs = [a, b]; loadExplore(ex.start, ex.end); };
+$("compare-on").onclick = () => {  // start by comparing with the period before; any picker below changes it
+  const pv = ex.data && ex.data.previous;
+  compareWith(...(pv ? [pv.start, pv.end] : [dataStart(), dataEnd()]));
+};
+$("compare-off").onclick = () => { ex.vs = null; loadExplore(ex.start, ex.end); };
+$("v-year").onchange = (e) => e.target.value && compareWith(`${e.target.value}-01-01`, `${e.target.value}-12-31`);
+$("v-month").onchange = (e) => e.target.value && compareWith(`${e.target.value}-01`, monthEnd(e.target.value));
+$("v-era").onchange = (e) => e.target.value && compareWith(...e.target.value.split("|"));
+$("v-apply").onclick = () => {
+  const [a, b] = [$("v-start").value, $("v-end").value];
+  if (!a || !b || a > b) return say("explore-status", "Pick a start date before the end date.", true);
+  compareWith(a, b);
+};
 
 function syncPickers(r) {
   const y0 = +r.data_start.slice(0, 4), y1 = +r.data_end.slice(0, 4);
@@ -898,7 +998,6 @@ function renderExplore(r) {
     : `<span class="chg ${a.prev_rank > i + 1 ? "up" : "down"}">${a.prev_rank > i + 1 ? "▲" : "▼"}${Math.abs(a.prev_rank - i - 1)}</span>`;
   const more = (n) => (n > 10 ? `<button class="more" data-more>Show all ${n}</button>` : "");
   const hb = r.habits, t = r.taste, st = r.streaks, se = r.sessions;
-  const countryName = (code) => { try { return new Intl.DisplayNames(undefined, { type: "region" }).of(code) || code; } catch { return code; } };
   const bars = (rows, fmtV) => { const hi = Math.max(...rows.map((x) => x[1])) || 1;
     return `<ul class="bars">${rows.map(([k, v]) => `<li><span>${esc(k)}</span><i style="--w:${(100 * v / hi).toFixed(1)}%"></i><em class="mono">${fmtV(v)}</em></li>`).join("")}</ul>`; };
 
@@ -937,7 +1036,7 @@ function renderExplore(r) {
 
     ${r.on_this_day && r.on_this_day.length ? `<div class="block"><h2>On this day</h2>
       <p class="dim">What you played on ${esc(new Date().toLocaleDateString(undefined, { month: "long", day: "numeric" }))} in other years. Click a year for the whole day.</p>
-      <ul class="plain otd">${r.on_this_day.map((d) => `<li>${dayBtn(d.day, d.day.slice(0, 4))}<span>${fmtH(d.hours)}, mostly ${artistBtn(d.artist)}${d.track ? `. On repeat: ${esc(d.track)}` : ""}</span></li>`).join("")}</ul></div>` : ""}
+      <ul class="plain otd">${r.on_this_day.map((d) => `<li>${dayBtn(d.day, d.day.slice(0, 4))}<span>${fmtH(d.hours)}, mostly ${artistBtn(d.artist)}${d.track ? `. On repeat: ${songBtn(d.track, d.track_artist, "")}` : ""}</span></li>`).join("")}</ul></div>` : ""}
 
     ${r.sound && r.sound.length ? `<div class="block"><h2>${soundTitle(r.sound, pvLabel)}</h2>
       <p class="dim">Share of your listening by genre, from the Last.fm tags of your top artists${pv ? `. Change is in percentage points since ${esc(pvLabel)}` : ""}.</p>
@@ -960,7 +1059,7 @@ function renderExplore(r) {
             <span class="nm">${artistBtn(a.name)}</span>${change(a, i)}
             <i style="--p:${(a.hours / maxA).toFixed(3)}"></i><em class="mono">${fmtH(a.hours)}</em></li>`).join("")}</ol>${more(r.top_artists.length)}</div>
         <div><h3>Songs</h3><ol class="rank">${r.top_tracks.map((x, i) => `<li${i >= 10 ? " class=extra" : ""}>
-            <span class="nm"><span class="tr">${esc(x.track)}</span> ${artistBtn(x.artist)}</span>
+            <span class="nm">${songBtn(x.track, x.artist)} ${artistBtn(x.artist)}</span>
             <em class="mono">${x.plays} plays${x.skip_rate >= 30 ? `, ${x.skip_rate}% skipped` : ""}</em></li>`).join("")}</ol>${more(r.top_tracks.length)}</div>
         <div><h3>Albums</h3>${r.top_albums.length ? `<ol class="rank">${r.top_albums.map((x) => `<li>
             <span class="nm"><span class="tr">${esc(x.album)}</span> ${artistBtn(x.artist)}</span><em class="mono">${fmtH(x.hours)}</em></li>`).join("")}</ol>`
@@ -976,6 +1075,10 @@ function renderExplore(r) {
           <p class="dim small" style="margin-top:8px">Hours in this period, then hours since. "Stuck" means you kept playing them.</p></div>
       </div></div>
 
+    ${clockHTML(r.clock)}
+    ${albumsHTML(r.albums)}
+    ${travelHTML(r.travel)}
+
     <div class="block"><h2>How you listen</h2>
       <div class="bento">
         <div class="cell"><span class="kicker">Streaks</span>
@@ -988,7 +1091,7 @@ function renderExplore(r) {
         ${r.binge ? `<div class="cell"><span class="kicker">Biggest binge</span>
           <p class="big"><b>${r.binge.plays}</b> ${artistBtn(r.binge.artist)} songs back to back</p><p class="dim small">${dayBtn(r.binge.day)}, ${fmtH(r.binge.minutes / 60)}</p></div>` : ""}
         ${r.obsession ? `<div class="cell"><span class="kicker">One-day obsession</span>
-          <p class="big"><b>${esc(r.obsession.track)}</b> ${r.obsession.plays} times in a day</p><p class="dim small">${artistBtn(r.obsession.artist)} on ${dayBtn(r.obsession.day)}</p></div>` : ""}
+          <p class="big"><b>${songBtn(r.obsession.track, r.obsession.artist, "")}</b> ${r.obsession.plays} times in a day</p><p class="dim small">${artistBtn(r.obsession.artist)} on ${dayBtn(r.obsession.day)}</p></div>` : ""}
         <div class="cell wide"><span class="kicker">Biggest days</span>
           <ul class="plain">${r.biggest_days.map((d) => `<li>${dayBtn(d.day, dayLabel(d.day))}<em class="mono">${fmtH(d.hours)}, mostly ${esc(d.top)}</em></li>`).join("")}</ul></div>
         <div class="cell"><span class="kicker">Time of day</span>
@@ -1005,9 +1108,10 @@ function renderExplore(r) {
             <div><b>${t.fresh_share}%</b><span>was songs you first heard in this period</span></div></div></div>
         ${r.devices.length ? `<div class="cell"><span class="kicker">Devices</span>${bars(r.devices, fmtH)}</div>` : ""}
         ${r.phones.length ? `<div class="cell"><span class="kicker">Your phones</span><ul class="plain">${r.phones.map((p) => `<li><span>${esc(p.name)}</span><em class="mono">${p.first.slice(0, 4)} to ${p.last.slice(0, 4)}, ${fmtH(p.hours)}</em></li>`).join("")}</ul></div>` : ""}
-        ${r.countries.length ? `<div class="cell"><span class="kicker">Where you listened</span><ul class="plain">${r.countries.map((c) => `<li><span>${esc(countryName(c.code))}</span><em class="mono">${c.days.toLocaleString()} days, ${fmtH(c.hours)}</em></li>`).join("")}</ul></div>` : ""}
+        ${r.countries.length && r.travel.countries.length < 2 ? `<div class="cell"><span class="kicker">Where you listened</span><ul class="plain">${r.countries.map((c) => `<li><span>${esc(countryName(c.code))}</span><em class="mono">${c.days.toLocaleString()} days, ${fmtH(c.hours)}</em></li>`).join("")}</ul></div>` : ""}
       </div></div>`;
   reveal($("explore-body"));
+  if ($("ex-map")) renderMap($("ex-map"), r.travel);
 
   const axes = { x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkipPadding: 12 } }, y: { grid, beginAtZero: true, border: { display: false } } };
   const hTip = { callbacks: { label: (c) => ` ${fmtH(c.parsed.y)}` } };
@@ -1064,7 +1168,7 @@ function calendarHTML(r) {
 // ---- drill-down dialogs (native <dialog>: focus trap, Esc to close and backdrop come free)
 async function openArtist(name) {
   const dlg = $("artist-dlg");
-  if ($("day-dlg").open) $("day-dlg").close();
+  closeOtherDrawers(dlg);
   $("artist-body").innerHTML = "";
   if (!dlg.open) dlg.showModal();
   clearCharts("artist");
@@ -1079,7 +1183,8 @@ async function openArtist(name) {
         <div class="a-art">${tile(r.name)}${r.image ? `<img src="${esc(r.image)}" alt="" onerror="this.remove()">` : ""}</div>
         <div><h2 id="artist-dlg-title">${esc(r.name)}</h2>
           <p class="dim small">${(r.tags || []).map(esc).join(", ")}${r.listeners ? `${r.tags && r.tags.length ? ". " : ""}${fmt(r.listeners)} Last.fm listeners` : ""}</p>
-          <a href="${esc(r.url)}" target="_blank" rel="noopener" class="small">Open in Spotify</a></div>
+          <a href="${esc(r.url)}" target="_blank" rel="noopener" class="small">Open in Spotify</a>
+          <button class="link small hide-artist" data-nm="${esc(r.name)}" data-hidden="true">Not music? Hide it</button></div>
       </header>
       <div class="tiles">
         <div class="tile"><span>All time</span><b>${fmtH(r.total_hours)}</b><span class="delta">#${r.rank} of your artists</span></div>
@@ -1095,7 +1200,7 @@ async function openArtist(name) {
       <h3>Share of your listening</h3><p class="dim small">Percent of each month's music that was ${esc(r.name)}.</p>
       <div class="chart-box shorter"><canvas id="a-share" role="img" aria-label="Share of listening per month"></canvas></div>
       <div class="split">
-        <div><h3>Songs${isAll ? "" : `, ${esc(label)}`}</h3><ol class="rank">${r.tracks.map((x) => `<li><span class="nm"><span class="tr">${esc(x.track)}</span></span>
+        <div><h3>Songs${isAll ? "" : `, ${esc(label)}`}</h3><ol class="rank">${r.tracks.map((x) => `<li><span class="nm">${songBtn(x.track, r.name)}</span>
           <em class="mono">${x.plays} plays${x.skip_rate >= 30 ? `, ${x.skip_rate}% skipped` : ""}</em></li>`).join("") || "<li class=dim>No plays in this period</li>"}</ol></div>
         <div><h3>When you play them</h3>
           <div class="heat heat-mini">${r.heat.map((row, d) => `<span class="lab">${DAYS[d].slice(0, 3)}</span>` + row.map((h, hr) =>
@@ -1123,7 +1228,7 @@ async function openArtist(name) {
 
 async function openDay(s) {
   const dlg = $("day-dlg");
-  if ($("artist-dlg").open) $("artist-dlg").close();
+  closeOtherDrawers(dlg);
   $("day-body").innerHTML = `<p class="status">Loading…</p>`;
   if (!dlg.open) dlg.showModal();
   const r = await api(`/api/day?date=${s}`).catch((e) => ({ error: e.message }));
@@ -1132,16 +1237,243 @@ async function openDay(s) {
     <h2 id="day-dlg-title">${esc(parseDay(s).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" }))}</h2>
     <p class="dim">${r.plays.length ? `${fmtH(r.hours)} of music, ${r.plays.length} songs, ${r.sessions} ${r.sessions === 1 ? "session" : "sessions"}` : "No music this day."}</p>
     <ol class="timeline">${r.plays.map((p) => `<li${p.skipped ? ' class="skipped"' : ""}><span class="mono dim">${p.time}</span>
-      <span class="nm"><span class="tr">${esc(p.track || "Unknown song")}</span> ${artistBtn(p.artist)}</span>
+      <span class="nm">${p.track ? songBtn(p.track, p.artist) : `<span class="tr">Unknown song</span>`} ${artistBtn(p.artist)}</span>
       <em class="mono">${p.minutes} min${p.skipped ? ", skipped" : ""}${p.device ? `, ${esc(p.device)}` : ""}</em></li>`).join("")}</ol>`;
 }
 
+// ---- Explore sections: music by the clock, albums, travel
+function clockHTML(ck) {
+  if (!ck || !ck.parts.some((p) => p.artists.length)) return "";
+  const night = ck.parts[0], star = night.artists[0];
+  return `<div class="block"><h2>${star ? `Your 3am music: ${artistBtn(star.name)}` : "Music by the clock"}</h2>
+    <p class="dim">What you play at each time of day far more than usual. "6×" means that part of the day gets six times their normal share
+      of your listening; the percent is how many of all their plays land there.${ck.latest ? ` Latest you've been up listening: ${ck.latest.time} on
+      ${dayBtn(ck.latest.day)}${ck.latest.track ? `, to ${songBtn(ck.latest.track, ck.latest.artist, "")}` : ""}.` : ""}</p>
+    <div class="clock">${ck.parts.map((p) => `<div>
+      <h3>${p.name} <span class="dim small mono">${pad2(p.from)}:00 to ${pad2(p.to % 24)}:00, ${p.share}% of your music</span></h3>
+      ${p.artists.length ? `<ol class="rank">${p.artists.map((a) => `<li><span class="nm">${artistBtn(a.name)}<span class="sub">${a.lift}× usual, ${a.of_theirs}% of their plays</span></span></li>`).join("")}</ol>`
+        : `<p class="dim small">Nothing stands out.</p>`}
+      ${p.tracks.length ? `<p class="kicker" style="margin-top:14px">Songs</p><ol class="rank">${p.tracks.map((t) => `<li><span class="nm">${songBtn(t.track, t.artist)} ${artistBtn(t.artist)}</span><em class="mono">${t.plays} plays</em></li>`).join("")}</ol>` : ""}
+    </div>`).join("")}</div></div>`;
+}
+
+function albumsHTML(al) {
+  if (!al || !(al.front_to_back.length || al.cherry_picked.length)) return "";
+  const title = al.album_share >= 20 ? `An album listener: ${al.album_share}% of your music was whole albums`
+    : `A cherry-picker: ${al.album_share}% of your music was whole albums`;
+  return `<div class="block"><h2>${title}</h2>
+    <p class="dim">A full listen is most of an album's tracklist back to back${al.tracklists ? " (tracklists from Last.fm)" : " (5 songs in a row; add a Last.fm key for real tracklists)"}.
+      Cherry-picked albums are ones you keep coming back to for a few songs.</p>
+    <div class="tops two">
+      <div><h3>Front to back</h3>${al.front_to_back.length ? `<ol class="rank">${al.front_to_back.map((a) => `<li><span class="nm"><span class="tr">${esc(a.album)}</span>
+          ${artistBtn(a.artist)}</span><em class="mono">played through ${a.full}×${a.total ? (a.heard >= a.total ? ", every song" : `, ${a.heard} of ${a.total} songs`) : ""}</em></li>`).join("")}</ol>`
+        : `<p class="dim small">No album got played through twice in this period.</p>`}</div>
+      <div><h3>Cherry-picked</h3>${al.cherry_picked.length ? `<ol class="rank">${al.cherry_picked.map((a) => `<li><span class="nm"><span class="tr">${esc(a.album)}</span>
+          ${artistBtn(a.artist)}<span class="sub">mostly ${songBtn(a.top_track, a.artist, "")} (${a.top_share}% of plays)</span></span>
+          <em class="mono">${a.heard} of ${a.total || "?"} songs</em></li>`).join("")}</ol>` : `<p class="dim small">You don't cherry-pick much here.</p>`}</div>
+    </div></div>`;
+}
+
+function travelHTML(tv) {
+  if (!tv || tv.countries.length < 2) return "";
+  const away = tv.countries.length - 1;
+  const title = tv.trips.length ? `${tv.trips.length} ${tv.trips.length === 1 ? "trip" : "trips"} abroad, ${away} ${away === 1 ? "country" : "countries"} besides ${esc(countryName(tv.home))}`
+    : `${tv.countries.length} countries`;
+  return `<div class="block"><h2>${title}</h2>
+    <p class="dim">From the country each play came from (a VPN can fool it). Hover the map for days and hours; click a trip's dates to explore just that trip.</p>
+    <div class="map-box" id="ex-map"><p class="dim small">Loading the map…</p></div>
+    <div class="split">
+      <div><h3>Trips</h3><ol class="trips">${tv.trips.map((t, i) => `<li${i >= 12 ? " class=extra" : ""}>
+          <button class="link mono" data-range="${t.start}|${t.end}">${shortDay(t.start)}${t.end !== t.start ? ` to ${shortDay(t.end)}` : ""}</button>
+          <span><b>${esc(countryName(t.code))}</b> <em class="mono">${t.days} ${t.days === 1 ? "day" : "days"}, ${fmtH(t.hours)}</em></span>
+          ${t.track ? `<span class="sub">Soundtrack: ${songBtn(t.track, t.track_artist, "")} by ${artistBtn(t.track_artist)}</span>` : ""}</li>`).join("")}</ol>
+        ${tv.trips.length > 12 ? `<button class="more" data-more>Show all ${tv.trips.length}</button>` : ""}</div>
+      <div><h3>Countries</h3><ul class="plain">${tv.countries.map((c) => `<li><span>${esc(countryName(c.code))}${c.code === tv.home ? ' <span class="chg">home</span>' : ""}</span>
+          <em class="mono">${c.days.toLocaleString()} days, ${fmtH(c.hours)}</em></li>`).join("")}</ul></div>
+    </div></div>`;
+}
+
+// One drawer at a time: opening a song from an artist page swaps the panel instead of stacking two
+const closeOtherDrawers = (keep) => document.querySelectorAll("dialog.drawer[open]").forEach((d) => d !== keep && d.close());
+
+// Plays-per-cell heatmap by weekday and hour, shared by the artist and song pages
+const miniHeat = (heat, unit) => { const peak = Math.max(...heat.flat()) || 1;
+  return `<div class="heat heat-mini">${heat.map((row, d) => `<span class="lab">${DAYS[d].slice(0, 3)}</span>` + row.map((v, hr) =>
+    `<div title="${DAYS[d]} ${hr}:00, ${unit(v)}" style="background: rgba(191,227,90,${(0.04 + 0.96 * v / peak).toFixed(2)})"></div>`).join("")).join("")}
+    <span></span>${Array.from({ length: 24 }, (_, i) => `<span class="lab">${i % 6 ? "" : i}</span>`).join("")}</div>`; };
+
+async function openSong(artistName, track) {
+  const dlg = $("song-dlg");
+  closeOtherDrawers(dlg);
+  $("song-body").innerHTML = "";
+  if (!dlg.open) dlg.showModal();
+  clearCharts("song");
+  const [a, b] = ex.start ? [ex.start, ex.end] : [dataStart(), dataEnd()];
+  await run("song-status", `Loading ${track}…`, async () => {
+    const r = await api(`/api/song?artist=${encodeURIComponent(artistName)}&track=${encodeURIComponent(track)}&start=${a}&end=${b}`);
+    const isAll = r.start === dataStart() && r.end === dataEnd(), label = rangeLabel(r.start, r.end);
+    const neighbors = (list) => list.map((x) => `<li><span class="nm">${songBtn(x.track, x.artist)} ${artistBtn(x.artist)}</span><em class="mono">${x.times}×</em></li>`).join("");
+    $("song-body").innerHTML = `
+      <header class="a-head">
+        <div class="a-art">${tile(r.artist)}${r.image ? `<img src="${esc(r.image)}" alt="" onerror="this.remove()">` : ""}</div>
+        <div><h2 id="song-dlg-title">${esc(r.track)}</h2>
+          <p>${artistBtn(r.artist)}${r.albums.length ? ` <span class="dim small">from ${r.albums.map(esc).join(", ")}</span>` : ""}</p>
+          <p class="dim small">${(r.tags || []).map(esc).join(", ")}${r.listeners ? `${r.tags && r.tags.length ? ". " : ""}${fmt(r.listeners)} Last.fm listeners` : ""}</p>
+          <a href="${trackUrl(r.artist, r.track)}" target="_blank" rel="noopener" class="small">Play on Spotify</a></div>
+      </header>
+      <div class="tiles">
+        <div class="tile"><span>Plays</span><b>${r.plays.toLocaleString()}</b><span class="delta">#${r.rank} of your songs</span></div>
+        <div class="tile"><span>${isAll ? "Listening" : label.length <= 14 ? esc(label) : "This period"}</span>
+          <b>${isAll ? fmtH(r.hours) : `${r.range_plays} plays`}</b><span class="delta">${r.days_played.toLocaleString()} days played</span></div>
+        <div class="tile"><span>Most in a day</span><b>${r.most_in_a_day.plays}</b><span class="delta">${dayBtn(r.most_in_a_day.day)}</span></div>
+        <div class="tile"><span>Skipped</span><b>${r.skip_rate}%</b><span class="delta">streak: ${r.longest_streak} ${r.longest_streak === 1 ? "day" : "days"} in a row</span></div>
+      </div>
+      <p class="a-facts">First played ${dayBtn(r.first)}. Last played ${dayBtn(r.last)}.
+        ${r.versions.length > 1 ? `Counted together: ${r.versions.map((v) => `"${esc(v)}"`).join(", ")}.` : ""}</p>
+      <h3>Over the years</h3><p class="dim small">Plays per month.${isAll ? "" : " Brighter bars are the period you're exploring."}</p>
+      <div class="chart-box short"><canvas id="s-months" role="img" aria-label="Plays per month"></canvas></div>
+      <div class="split">
+        <div><h3>Year by year</h3><ul class="bars">${r.by_year.map((y) => `<li><span>${y.year}</span>
+          <i style="--w:${(100 * y.plays / Math.max(...r.by_year.map((z) => z.plays))).toFixed(1)}%"></i>
+          <em class="mono">${y.plays} plays, ${y.skip_rate}% skipped</em></li>`).join("")}</ul>
+          ${r.starts.length ? `<h3>How it started</h3><ul class="bars">${r.starts.filter((x) => x[1] > 0).map(([k, v]) => `<li><span>${esc(k)}</span><i style="--w:${v}%"></i><em class="mono">${v}%</em></li>`).join("")}</ul>` : ""}</div>
+        <div><h3>When you play it</h3>${miniHeat(r.heat, (v) => `${v} plays`)}</div>
+      </div>
+      ${r.before.length || r.after.length ? `<div class="split">
+        <div><h3>Usually comes after</h3>${r.before.length ? `<ol class="rank">${neighbors(r.before)}</ol>` : `<p class="dim small">Nothing regular.</p>`}</div>
+        <div><h3>Usually followed by</h3>${r.after.length ? `<ol class="rank">${neighbors(r.after)}</ol>` : `<p class="dim small">Nothing regular.</p>`}</div>
+      </div>` : ""}`;
+    const inRange = (m) => m >= r.start.slice(0, 7) && m <= r.end.slice(0, 7);
+    chart("s-months", { type: "bar", data: { labels: r.months.map(month), datasets: [{ label: "Plays", data: r.plays_by_month,
+      backgroundColor: r.months.map((m) => isAll || inRange(m) ? ACCENT : "rgba(191,227,90,.3)"), borderRadius: { topLeft: 2, topRight: 2 }, borderSkipped: "bottom" }] },
+      options: { scales: { x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkipPadding: 14 } }, y: { grid, beginAtZero: true, border: { display: false }, ticks: { precision: 0 } } },
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${c.parsed.y} plays` } } } } }, "song");
+  });
+}
+
+// ---- compare: two periods side by side. A is the dim gray series, B the accent; both named in a legend.
+const A_COLOR = "#A09B90";
+function renderCompare(r) {
+  clearCharts("explore");
+  const A = r.a, B = r.b, la = rangeLabel(A.start, A.end), lb = rangeLabel(B.start, B.end);
+  const sa = A.summary, sb = B.summary;
+  const pct = (x, y) => (x ? Math.round(100 * (y - x) / x) : null);
+  const change = (x, y, kind) => {
+    if (x == null || y == null) return "";
+    const d = kind === "pts" ? Math.round(y - x) : pct(x, y);
+    if (d == null || d === 0) return `<span class="delta">same</span>`;
+    return `<span class="delta ${d > 0 ? "up" : ""}">${d > 0 ? "+" : ""}${d}${kind === "pts" ? " pts" : "%"}</span>`;
+  };
+  const part = (x, name) => (x.clock.parts.find((p) => p.name === name) || {}).share;
+  const rows = [
+    ["Music", fmtH(sa.hours), fmtH(sb.hours), change(sa.hours, sb.hours)],
+    ["Per day", fmtH(sa.per_day), fmtH(sb.per_day), change(sa.per_day, sb.per_day)],
+    ["Days with music", `${Math.round(100 * sa.listening_days / sa.days)}%`, `${Math.round(100 * sb.listening_days / sb.days)}%`,
+      change(100 * sa.listening_days / sa.days, 100 * sb.listening_days / sb.days, "pts")],
+    ["Artists", sa.artists.toLocaleString(), sb.artists.toLocaleString(), change(sa.artists, sb.artists)],
+    ["New to you", sa.new_artists.toLocaleString(), sb.new_artists.toLocaleString(), change(sa.new_artists, sb.new_artists)],
+    ["Songs", sa.tracks.toLocaleString(), sb.tracks.toLocaleString(), change(sa.tracks, sb.tracks)],
+    ["Longest streak", `${A.streaks.longest ? A.streaks.longest.days : 0} days`, `${B.streaks.longest ? B.streaks.longest.days : 0} days`,
+      change(A.streaks.longest && A.streaks.longest.days, B.streaks.longest && B.streaks.longest.days)],
+    ["Typical session", `${A.sessions.median_min} min`, `${B.sessions.median_min} min`, change(A.sessions.median_min, B.sessions.median_min)],
+    ["Skipped", `${A.habits.skip_rate}%`, `${B.habits.skip_rate}%`, change(A.habits.skip_rate, B.habits.skip_rate, "pts")],
+    ["On shuffle", A.habits.shuffle == null ? "?" : `${A.habits.shuffle}%`, B.habits.shuffle == null ? "?" : `${B.habits.shuffle}%`, change(A.habits.shuffle, B.habits.shuffle, "pts")],
+    ["Top 10 artists' share", `${A.taste.top10_share}%`, `${B.taste.top10_share}%`, change(A.taste.top10_share, B.taste.top10_share, "pts")],
+    ["Songs new to you", `${A.taste.fresh_share}%`, `${B.taste.fresh_share}%`, change(A.taste.fresh_share, B.taste.fresh_share, "pts")],
+    ["Variety", `${A.taste.effective_artists} artists`, `${B.taste.effective_artists} artists`, change(A.taste.effective_artists, B.taste.effective_artists)],
+    ["Late night listening", `${part(A, "Late night")}%`, `${part(B, "Late night")}%`, change(part(A, "Late night"), part(B, "Late night"), "pts")],
+    ["Top artist", A.top_artists[0] ? artistBtn(A.top_artists[0].name) : "-", B.top_artists[0] ? artistBtn(B.top_artists[0].name) : "-", ""],
+    ["Top song", A.top_tracks[0] ? songBtn(A.top_tracks[0].track, A.top_tracks[0].artist) : "-", B.top_tracks[0] ? songBtn(B.top_tracks[0].track, B.top_tracks[0].artist) : "-", ""],
+  ];
+  const inBoth = new Set(r.both.map((x) => x.name));
+  const topList = (x) => `<ol class="rank">${x.top_artists.slice(0, 15).map((a) => `<li><span class="nm">${artistBtn(a.name)}${inBoth.has(a.name) ? ` <span class="chg">both</span>` : ""}</span><em class="mono">${fmtH(a.hours)}</em></li>`).join("")}</ol>`;
+  const simple = (list) => list.length ? `<ol class="rank">${list.map((x) => `<li><span class="nm">${artistBtn(x.name)}</span><em class="mono">${fmtH(x.hours)}</em></li>`).join("")}</ol>` : `<p class="dim small">Nobody</p>`;
+  const legend = `<div class="cmp-legend"><span><i style="background:${A_COLOR}"></i>${esc(la)}</span><span><i style="background:${ACCENT}"></i>${esc(lb)}</span></div>`;
+  $("explore-body").innerHTML = `
+    <div class="ex-head">
+      <h2>${esc(la)} <span class="vs-word">vs</span> ${esc(lb)}</h2>
+      <p class="dim">Your listening mixes overlap <b class="hi">${r.overlap}%</b>: of the time you spent on artists, that much went to artists both periods share, at the smaller of their two shares.</p>
+    </div>
+    <div class="block"><h2>Side by side</h2><p class="dim">Change is ${esc(lb)} compared with ${esc(la)}.</p>
+      <table class="cmp"><thead><tr><th></th><th>${esc(la)}</th><th>${esc(lb)}</th><th>Change</th></tr></thead>
+        <tbody>${rows.map(([k, x, y, d]) => `<tr><th scope="row">${k}</th><td>${x}</td><td>${y}</td><td>${d}</td></tr>`).join("")}</tbody></table></div>
+    ${r.sound && r.sound.length ? `<div class="block"><h2>How your sound changed</h2>
+      <p class="dim">Share of each period's listening by genre, from the Last.fm tags of its top artists.</p>${legend}
+      <ul class="pairs">${r.sound.map((x) => { const hi = Math.max(...r.sound.flatMap((z) => [z.a, z.b])) || 1;
+        return `<li><span>${esc(x.tag)}</span><div><i style="width:${(100 * x.a / hi).toFixed(1)}%;background:${A_COLOR}" title="${esc(la)}: ${x.a}%"></i>
+          <i style="width:${(100 * x.b / hi).toFixed(1)}%;background:${ACCENT}" title="${esc(lb)}: ${x.b}%"></i></div>
+          <em class="mono">${x.a}% → ${x.b}%</em></li>`; }).join("")}</ul></div>`
+      : r.sound_note ? `<div class="block"><h2>How your sound changed</h2><p class="dim">${esc(r.sound_note)}</p></div>` : ""}
+    <div class="block"><h2>When you listened</h2>${legend}
+      <div class="split">
+        <div><h3>Average per weekday</h3><div class="chart-box short"><canvas id="cmp-wd" role="img" aria-label="Average hours per weekday in both periods"></canvas></div></div>
+        <div><h3>Through the day</h3><div class="chart-box short"><canvas id="cmp-hour" role="img" aria-label="Minutes per hour of day in both periods"></canvas></div></div>
+      </div></div>
+    <div class="block"><h2>Top artists</h2><p class="dim">"both" marks artists with at least half an hour in each period.</p>
+      <div class="tops"><div><h3>${esc(la)}</h3>${topList(A)}</div><div><h3>${esc(lb)}</h3>${topList(B)}</div>
+        <div><h3>Stayed with you</h3>${r.both.length ? `<ol class="rank">${r.both.map((x) => `<li><span class="nm">${artistBtn(x.name)}</span><em class="mono">${fmtH(x.a)} → ${fmtH(x.b)}</em></li>`).join("")}</ol>` : `<p class="dim small">No artist had half an hour in both.</p>`}</div></div></div>
+    <div class="block"><h2>Only in one</h2><p class="dim">Artists you played in one period and not at all in the other.</p>
+      <div class="tops"><div><h3>Only ${esc(la)}</h3>${simple(r.only_a)}</div><div><h3>Only ${esc(lb)}</h3>${simple(r.only_b)}</div>
+        <div><h3>Top songs</h3><ol class="rank">${[[A, A_COLOR], [B, ACCENT]].flatMap(([x, col]) => x.top_tracks.slice(0, 5).map((t) =>
+          `<li><span class="nm"><i class="dot" style="background:${col}"></i>${songBtn(t.track, t.artist)} ${artistBtn(t.artist)}</span><em class="mono">${t.plays}</em></li>`)).join("")}</ol></div></div></div>`;
+  reveal($("explore-body"));
+  const axes = { x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkipPadding: 12 } }, y: { grid, beginAtZero: true, border: { display: false } } };
+  chart("cmp-wd", { type: "bar", data: { labels: DAYS.map((d) => d.slice(0, 3)), datasets: [
+    { label: la, data: A.weekday_avg, backgroundColor: A_COLOR, borderRadius: { topLeft: 3, topRight: 3 }, borderSkipped: "bottom", maxBarThickness: 22 },
+    { label: lb, data: B.weekday_avg, backgroundColor: ACCENT, borderRadius: { topLeft: 3, topRight: 3 }, borderSkipped: "bottom", maxBarThickness: 22 }] },
+    options: { scales: axes, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${fmtH(c.parsed.y)}` } } } } }, "explore");
+  chart("cmp-hour", { type: "line", data: { labels: Array.from({ length: 24 }, (_, h) => `${h}:00`), datasets: [
+    { label: la, data: A.hour_avg_min, borderColor: A_COLOR, borderWidth: 2, pointRadius: 0, tension: 0.35 },
+    { label: lb, data: B.hour_avg_min, borderColor: ACCENT, borderWidth: 2, pointRadius: 0, tension: 0.35 }] },
+    options: { scales: axes, interaction: { mode: "index", intersect: false },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${c.parsed.y} min per day` } } } } }, "explore");
+}
+
+// ---- travel map: world-atlas shapes drawn with d3-geo, loaded the first time a map is shown
+const loadScript = (src) => new Promise((ok, fail) => document.head.append(Object.assign(document.createElement("script"),
+  { src, onload: ok, onerror: () => fail(new Error("Couldn't load the map.")) })));
+let mapAssets = null;
+function loadMapAssets() {
+  mapAssets ||= (async () => {
+    await loadScript("https://cdn.jsdelivr.net/npm/d3-array@3/dist/d3-array.min.js");  // d3-geo needs it loaded first
+    await loadScript("https://cdn.jsdelivr.net/npm/d3-geo@3/dist/d3-geo.min.js");
+    await loadScript("https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js");
+    const [world, codes] = await Promise.all([
+      fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json").then((r) => r.json()),
+      fetch("https://cdn.jsdelivr.net/npm/i18n-iso-countries@7/codes.json").then((r) => r.json())]);
+    // Spotify says "DK"; the map's shapes are keyed by the ISO numeric code ("208")
+    return { world, numeric: Object.fromEntries(codes.map(([a2, , num]) => [a2, num])) };
+  })();
+  mapAssets.catch(() => (mapAssets = null));  // a failed load can be retried on the next render
+  return mapAssets;
+}
+async function renderMap(el, tv) {
+  try {
+    const { world, numeric } = await loadMapAssets();
+    const land = topojson.feature(world, world.objects.countries).features.filter((f) => f.id !== "010");  // no Antarctica
+    const byId = Object.fromEntries(tv.countries.map((c) => [numeric[c.code], c]));
+    const W = 960, H = 470, proj = d3.geoNaturalEarth1().fitSize([W, H], { type: "FeatureCollection", features: land });
+    const path = d3.geoPath(proj);
+    const away = tv.countries.filter((c) => c.code !== tv.home);
+    const maxDays = Math.max(1, ...away.map((c) => c.days));
+    el.innerHTML = `<svg class="map" viewBox="0 0 ${W} ${H}" role="img" aria-label="Map of the countries you've listened in">${land.map((f) => {
+      const c = byId[f.id], home = c && c.code === tv.home;
+      const fill = !c ? "var(--surface-2)" : home ? "rgba(191,227,90,.22)" : `rgba(191,227,90,${(0.45 + 0.55 * Math.log1p(c.days) / Math.log1p(maxDays)).toFixed(2)})`;
+      return `<path d="${path(f)}" fill="${fill}"${c ? ` class="hit"` : ""}>${c ? `<title>${esc(countryName(c.code))}${home ? " (home)" : ""}: ${c.days} days, ${fmtH(c.hours)}</title>` : ""}</path>`;
+    }).join("")}</svg>`;
+  } catch (e) {
+    el.innerHTML = `<p class="dim small">${esc(e.message)} The list below has everything.</p>`;
+  }
+}
+const countryName = (code) => { try { return new Intl.DisplayNames(undefined, { type: "region" }).of(code) || code; } catch { return code; } };
+
 // One listener for every drill-down link on the page, including ones inside the dialogs
 document.addEventListener("click", (e) => {
-  const t = e.target.closest("[data-artist], [data-day], [data-range], [data-close], [data-more]");
+  const t = e.target.closest("[data-song], [data-artist], [data-day], [data-range], [data-close], [data-more]");
   if (e.target.tagName === "DIALOG") return e.target.close();  // a click on the backdrop
   if (!t) return;
-  if (t.dataset.artist) openArtist(t.dataset.artist);
+  if (t.dataset.song) openSong(t.dataset.songArtist, t.dataset.song);
+  else if (t.dataset.artist) openArtist(t.dataset.artist);
   else if (t.dataset.day) openDay(t.dataset.day);
   else if (t.dataset.range) { document.querySelectorAll("dialog[open]").forEach((d) => d.close()); goExplore(...t.dataset.range.split("|")); }
   else if (t.hasAttribute("data-close")) t.closest("dialog").close();
@@ -1342,13 +1674,14 @@ const TABS = ["trends", "explore", "similar", "blends", "recap"];
 const route = () => location.hash.slice(1).split("/").map(decodeURIComponent);
 const currentTabFromUrl = () => (TABS.includes(route()[0]) ? route()[0] : "trends");
 const loaded = {};
-const loaders = { trends: loadTrends, explore: () => loadExplore(route()[1], route()[2], false), similar: loadDeepCuts,
+const vsFromRoute = () => { const r = route(); return r[3] === "vs" && r[5] ? [r[4], r[5]] : null; };
+const loaders = { trends: loadTrends, explore: () => { ex.vs = vsFromRoute(); return loadExplore(route()[1], route()[2], false); }, similar: loadDeepCuts,
                   blends: loadBlends, recap: () => loadRecap() };
 // push=false on a back/forward navigation and on first load, so we don't fight the history we're responding to.
 function showTab(name, push = true) {
   document.querySelectorAll("nav.tabs button").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === name));
   document.querySelectorAll("section.tab").forEach((s) => (s.hidden = s.id !== name));
-  const hash = name === "explore" && ex.start ? `explore/${ex.start}/${ex.end}` : name;
+  const hash = name === "explore" && ex.start ? exHash() : name;
   if (push && location.hash.slice(1) !== hash) history.pushState(null, "", "#" + hash);
   if (loaders[name] && !loaded[name]) {
     loaded[name] = true;
@@ -1362,9 +1695,12 @@ function refreshTabs(name) {
 }
 document.querySelectorAll("nav.tabs button").forEach((b) => (b.onclick = () => showTab(b.dataset.tab)));
 window.onpopstate = () => {
-  const tab = currentTabFromUrl(), [, a, b] = route();
+  const tab = currentTabFromUrl(), [, a, b] = route(), vs = vsFromRoute();
   showTab(tab, false);
-  if (tab === "explore" && loaded.explore && a && (a !== ex.start || b !== ex.end)) loadExplore(a, b, false);
+  if (tab === "explore" && loaded.explore && a && `${a}/${b}/${vs}` !== `${ex.start}/${ex.end}/${ex.vs}`) {
+    ex.vs = vs;
+    loadExplore(a, b, false);
+  }
 };
 
 // ---- charts (categorical palette validated with the dataviz skill: CVD dE >= 8.4, all >= 3:1 on dark surfaces)
