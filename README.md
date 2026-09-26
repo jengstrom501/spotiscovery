@@ -23,7 +23,8 @@ A local web app that looks through your Spotify listening history, shows how you
   - **Artist pages:** click any artist, anywhere, for their full history with you (all-time curve, rank, streaks, first play, songs, when you play them), their big songs you've missed, and similar artists you haven't heard.
   - **Song pages:** click any song for its life in your history: plays over the years, most in one day, skips by year, how it usually started, and what you play before and after it.
 - **Recap:** a card that summarizes *you* (total plays, artists, songs, hours, years on Spotify, number of music eras, and a chart of every month with your eras marked), not another top-5 list. Spotiscovery looks for the most telling things in your year (a song you came back to after 7 years, an artist you drifted from, the big artist you found within two years of their first release, your 3am artist, your deepest cut, where your taste moved) and ranks them by how unusual they are. Pick which go on the card (Story or Square), then download, share or copy it.
-- **Similar sound:** artists close to what you play that you've never played. The *Mainstream ↔ Deep cuts* slider pushes big names down so smaller acts come through.
+- **Similar sound:** artists close to what you play *now* that you've never played, on shelves by scene (house, hip-hop, ...) so one sound can't crowd out the rest. The *Mainstream ↔ Deep cuts* slider pushes big names down so smaller acts come through. *More like this* / *Not for me* on each pick shape the next run.
+- **Found early:** the artists you were playing within two years of their first release (MusicBrainz) who now have over a million listeners.
 - **Songs you've missed:** the best-known songs by artists you already love that aren't in your history yet.
 - **Blends:** artists at the crossover of two or three of your tags, like *shoegaze × post-hardcore*. Some blends are picked automatically; you can also choose tags yourself.
 - **Ask Claude (optional):** Claude reads your taste profile and suggests blends with reasons. Every artist it names is checked against Last.fm, so it can't hand you a band that doesn't exist.
@@ -93,7 +94,7 @@ Artist photos come from Spotify, or from Deezer's public search when Spotify has
 
 Release dates for "you found them early" come from MusicBrainz (free, no key). It allows one request per second, so the first recap checks a few artists and finishes the rest in the background; run it again a few minutes later.
 
-The colors are chosen to be readable with red/green color blindness: nothing relies on red versus green, changes carry arrows and signs, and the time-of-day chart uses a single blue ramp.
+The colors are chosen to be readable with any common color blindness: one blue accent, with orange for drops and errors (a pair that stays distinct for red/green and blue/yellow color blindness), changes carry arrows and signs, and the time-of-day chart uses a single blue ramp.
 
 ## How it works
 
@@ -105,10 +106,13 @@ The colors are chosen to be readable with red/green color blindness: nothing rel
 | `analyze.py` | Trend charts, taste drift, eras, the recap card's numbers |
 | `explore.py` | Any-period analytics, artist pages, day play-by-play |
 | `recommend.py` | The scoring (see below) |
+| `backtest.py` | Measures Similar sound on your own history (see below) |
 | `claude_mode.py` | Optional Claude blends, each artist checked against Last.fm |
 | `static/index.html` | The whole UI, with no build step |
 
-**Scoring.** Each artist you play gets a weight based on log minutes played, plus a bonus if they're in your Spotify top artists. For your top 50 artists, Spotiscovery collects Last.fm's similar artists. Each candidate's score is the sum of *(your weight for the seed artist × how similar the candidate is to it)*. Anyone you've played, follow or have saved is dropped. The obscurity slider then divides the score by `(1 + listeners/100k) ^ obscurity`.
+**Scoring.** Each artist you play gets a weight from their minutes, with every play decayed by its age (half-life 180 days) and artists you started in the last year counting double, plus a bonus if they're in your Spotify top artists. For your top 300 artists, Spotiscovery collects Last.fm's similar artists. A candidate's score is the sum of *(your weight for the seed × how similar the candidate is to it)*, times `1 + ln(number of your artists pointing to it)`. Anyone you've played, follow, saved or rated is dropped; *More like this* adds an artist as a seed. The obscurity slider divides the score by `(1 + listeners/100k) ^ obscurity`, and no scene (the last word of an artist's top tag) gets more than a quarter of the 40 picks.
+
+**Backtest.** `python backtest.py` hides a year of your history, recommends from what came before, and checks where the artists you went on to adopt (30+ minutes, new to you) land, for each of your last three years. On the author's history, moving from all-time minutes and 50 seeds to the current method took adopted artists in the top 300 candidates from 4 to 11. The final top 40 held about one each either way. That's too few to rank methods on, so the dense number drove the choice. Most new finds hang off the long tail of a scene you're getting into, not your all-time favorites, which is why the seeds go 300 deep and lean recent.
 
 **Blends.** Your tag profile is your listening weight spread over each artist's Last.fm tags, with junk tags like "seen live" and decades removed. A blend is the set of artists in *every* chosen tag's top 300 that you don't already know.
 

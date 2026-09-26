@@ -479,6 +479,30 @@ def feature_settings_validates_keys():
             os.environ["ANTHROPIC_API_KEY"] = saved_env
 
 
+def feature_smarter_similar():
+    # Feature: Similar sound seeds lean on what you play now (backtested in backtest.py), no scene takes over the
+    # list, and thumbs feed back in: "More like this" becomes a seed, both votes keep the artist out of picks.
+    from datetime import date
+    an, rec, store = deep_cuts.analyze, deep_cuts.recommend, deep_cuts.store
+    hour = lambda day, artist: {"ts": f"{day}T12:00:00Z", "master_metadata_album_artist_name": artist,
+                                "master_metadata_track_name": "x", "ms_played": 3_600_000}
+    store.add_plays([hour("2040-01-01", "Now Old"), hour("2040-12-01", "Now New")])
+    m = an.taste_now(until=date(2041, 1, 1))
+    assert m["Now New"] > 5 * m["Now Old"], (m["Now New"], m["Now Old"])  # 11 months fresher, and new to you
+    recs = [{"name": f"H{i}", "tags": ["deep house" if i % 2 else "lo-fi house"]} for i in range(12)] + \
+           [{"name": "R", "tags": ["seen live", "hip hop"]}, {"name": "T", "tags": ["trap"]}]
+    out = rec.diversify(recs, k=8)
+    assert [r["name"] for r in out][4:6] == ["R", "T"] and len(out) == 8, [r["name"] for r in out]  # 4 house, then the rest
+    assert {r["scene"] for r in out} == {"house", "hip-hop"}
+    assert client.post("/api/feedback", json={"artist": "Liked One", "vote": 2}).status_code == 400
+    client.post("/api/feedback", json={"artist": "Liked One", "vote": 1})
+    client.post("/api/feedback", json={"artist": "Nope", "vote": -1})
+    seeds, known = an.inputs(now=True)
+    assert "liked one" in seeds and {"liked one", "nope"} <= known
+    client.post("/api/feedback", json={"artist": "Nope", "vote": 0})
+    assert "nope" not in an.inputs(now=True)[1]
+
+
 if __name__ == "__main__":
     for name, check in list(globals().items()):
         if name.startswith(("issue_", "feature_")):

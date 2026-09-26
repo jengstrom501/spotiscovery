@@ -2,6 +2,7 @@
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 
+import explore
 import recommend
 import store
 
@@ -25,14 +26,41 @@ def hidden():
         return {store.norm(a) for (a,) in c.execute("SELECT artist FROM not_music WHERE hidden = 1")}
 
 
-def inputs():
-    """(seeds, known) from the export plays and the Spotify snapshot, whichever you have."""
+def taste_now(half_life=180, fresh_days=365, fresh_boost=2, until=None):
+    """{artist: minutes} weighted toward what you play now: each play decays by its age (half-life in days,
+    counted back from your last play, so an old export still works) and artists you started in the last year count
+    double. Backtested on this app's own data (backtest.py): versus all-time minutes, it puts ~3x more of the
+    artists you went on to adopt near the top of the Similar sound candidates."""
+    c = explore.plays()
+    rows = [p for p in c["rows"] if until is None or p.day < until]  # until: as of that day (backtest.py)
+    if not rows:
+        return {}
+    end, m = until or rows[-1].day, Counter()
+    for p in rows:
+        m[p.artist] += 0.5 ** ((end - p.day).days / half_life) * p.ms / 60000
+    return {a: v * (fresh_boost if (end - c["first_artist"][a]).days <= fresh_days else 1) for a, v in m.items()}
+
+
+def feedback():
+    """{artist: 1 | -1} from the thumbs on Similar sound cards."""
+    return store.get("feedback", {})
+
+
+def inputs(now=False):
+    """(seeds, known) from the export plays and the Spotify snapshot, whichever you have. now: seeds lean on
+    recent listening (Similar sound); otherwise all-time minutes (blends, deep cuts, Claude)."""
     snap = store.get("spotify", {})
-    minutes = minutes_by_artist()
+    minutes = taste_now() if now else minutes_by_artist()
     skip = hidden()  # Spotify's top-artist lists can include the same sleep-sounds "artist"
     top = {rng: [a for a in names if store.norm(a) not in skip] for rng, names in snap.get("top", {}).items()}
     seeds = recommend.seed_weights(minutes, top)
-    known = recommend.known_set([*seeds, *snap.get("followed", []), *snap.get("saved_artists", []),
+    fb = feedback()
+    if seeds and any(v > 0 for v in fb.values()):  # "More like this" makes an artist a seed, at a top-50 weight
+        w = sorted((x for _, x in seeds.values()), reverse=True)[min(49, len(seeds) - 1)]
+        for a, v in fb.items():
+            if v > 0:
+                seeds[store.norm(a)] = (a, max(w, seeds.get(store.norm(a), (a, 0))[1]))
+    known = recommend.known_set([*seeds, *fb, *snap.get("followed", []), *snap.get("saved_artists", []),
                                  *(p["artist"] for p in snap.get("recent", []))])
     return seeds, known
 

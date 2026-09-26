@@ -1,7 +1,7 @@
 """Scoring. `lf` is anything with lastfm.py's interface (similar, top_tags, info, tag_artists)."""
 import math
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from itertools import combinations
 
 from store import norm, squash, track, track_key
@@ -67,9 +67,8 @@ def tag_profile(seeds, lf, n=100):
     return dict(sorted(prof.items(), key=lambda kv: -kv[1]))
 
 
-def similar_recs(seeds, known, lf, obscurity=0.5, n_seeds=50, pool=150, k=40):
-    """Artists similar to what you play that you've never played.
-    obscurity 0..1 penalizes big Last.fm listener counts; that's what surfaces the overlooked."""
+def candidates(seeds, known, lf, n_seeds=300):
+    """({candidate: score} best first, {candidate: [(weight, seed)]}) from your seeds' Last.fm similar lists."""
     score, because = defaultdict(float), defaultdict(list)
     for seed, w in track("similar", top_seeds(seeds, n_seeds), "Finding artists similar to yours"):
         for cand, match in lf.similar(seed):
@@ -77,8 +76,19 @@ def similar_recs(seeds, known, lf, obscurity=0.5, n_seeds=50, pool=150, k=40):
                 continue
             score[cand] += w * match
             because[cand].append((w * match, seed))
+    for cand in score:
+        score[cand] *= 1 + math.log(len(because[cand]))  # consensus: several of your artists point here
+    return dict(sorted(score.items(), key=lambda kv: -kv[1])), because
+
+
+def similar_recs(seeds, known, lf, obscurity=0.5, n_seeds=300, pool=300, k=40):
+    """Artists similar to what you play that you've never played.
+    obscurity 0..1 penalizes big Last.fm listener counts; that's what surfaces the overlooked.
+    300 seeds, not just your top 50: new finds tend to hang off your long tail (the small artists of a scene
+    you're getting into), and a candidate several of them point to gets a bonus (consensus)."""
+    score, because = candidates(seeds, known, lf, n_seeds)
     out = []
-    for cand in track("similar", sorted(score, key=lambda c: -score[c])[:pool], "Checking how well-known each one is"):
+    for cand in track("similar", list(score)[:pool], "Checking how well-known each one is"):
         inf = lf.info(cand)
         if not inf or is_known(inf["name"], known, inf["tags"]):  # autocorrect can map to an artist you know
             continue
@@ -87,7 +97,29 @@ def similar_recs(seeds, known, lf, obscurity=0.5, n_seeds=50, pool=150, k=40):
                     "listeners": inf["listeners"], "tags": [t for t in inf["tags"] if good_tag(t)][:4],
                     "because": [s for _, s in sorted(because[cand], reverse=True)[:3]]})
     out.sort(key=lambda r: -r["score"])
-    return out[:k]
+    return diversify(out, k)
+
+
+# Rough scene of a tag: its last word ("deep house", "lo-fi house" -> house), with hip-hop's spellings merged.
+SCENE_ALIAS = {"hop": "hip-hop", "rap": "hip-hop", "trap": "hip-hop", "chillout": "downtempo", "lounge": "downtempo"}
+
+
+def scene(tags):
+    t = next((t for t in tags if good_tag(t)), "")
+    last = t.replace("hip hop", "hip-hop").split()[-1] if t else "other"
+    return SCENE_ALIAS.get(last, last)
+
+
+def diversify(recs, k, share=0.25):
+    """Best first, but no scene takes more than `share` of the list, so the sound you're deepest in right now
+    doesn't crowd out the others you still play. Each rec gets its "scene" for the page's shelves.
+    ponytail: scene = last word of the top tag; tag clustering if that proves too rough."""
+    cap, per, out, rest = max(4, int(k * share)), Counter(), [], []
+    for r in recs:
+        r["scene"] = scene(r["tags"])
+        (out if per[r["scene"]] < cap else rest).append(r)
+        per[r["scene"]] += 1
+    return (out + rest)[:k]
 
 
 def deep_cuts(seeds, played, lf, n_seeds=25, per_artist=5, min_unheard=3):

@@ -6,7 +6,7 @@ calendar, habits, genres by period, artist + day drill-downs), Similar sound, Bl
 
 ## Next
 1. Save a playlist for real (endpoints moved to post-Feb-2026 /me/playlists + /items; only tested with mocks)
-2. Tune `JUNK_TAGS` and the obscurity curve against real recs
+2. Tune `JUNK_TAGS` and the obscurity curve with backtest.py
 3. Create GitHub repo, push
 
 Built 2026-09-25 (round 3): compare two periods, song pages, albums front-to-back vs cherry-picked,
@@ -14,8 +14,15 @@ travel map with trips, music by the clock ("your 3am music").
 
 Recap is insight-driven (insights.py): ~18 kinds of finding, scored and ranked, one per kind.
 
-## Next up: better recommendations
-Build a backtest (hide 2025, recommend from earlier data, measure hits), then recency + skip-aware seeds, popularity-normalized scoring with a taste-fit check, and taste-cluster shelves.
+Built 2026-09-25 (round 4): CVD-safe blue/orange theme; Explore sub-tabs + Customize (hide sections, per browser);
+Found early list (/api/found-early, MusicBrainz warms in the background); recap stats gutters + compact insight picker;
+Similar sound backtested (backtest.py) and rebuilt: taste-now seeds, 300 deep, consensus, scene shelves, thumbs.
+
+## Next
+- Recommendations: the final top 40 barely moves in the backtest (0-1 hits a year either way); try a taste-fit
+  re-rank or Claude re-rank of real candidates, judged by backtest.py. Tried a tag-profile fit: no gain.
+- Sleep-sound "artists" (Robbins Island Music Group, Sleepy Cow, Nature Sounds Artists) slip past flag_not_music
+  (short plays) and show up in "3am music"; widen the artist-name check.
 
 ## Ideas not built yet
 - Album pages (tracklist with which songs you play, full listens over time)

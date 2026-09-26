@@ -363,12 +363,26 @@ def named_cards(names):
 
 @app.get("/api/similar")
 def similar():
-    seeds, known = analyze.inputs()
+    seeds, known = analyze.inputs(now=True)
     if not seeds:
         return jsonify(error="No listening data yet. Connect Spotify or upload your export."), 400
     recs = recommend.similar_recs(seeds, known, lastfm, obscurity=float(request.args.get("obscurity", 0.5)))
     store.put("last_recs", [r["name"] for r in recs])
     return jsonify(with_cards(recs))
+
+
+@app.post("/api/feedback")
+def rec_feedback():
+    """Thumbs on a Similar sound card. Body {artist, vote}: 1 = more like this (it becomes a seed), -1 = not for me,
+    0 = forget. Either vote keeps the artist out of future picks."""
+    data = request.get_json(silent=True) or {}
+    artist, vote = str(data.get("artist") or "").strip()[:200], data.get("vote")
+    if not artist or vote not in (1, -1, 0):
+        return jsonify(error="Needs an artist and a vote of 1, -1 or 0."), 400
+    fb = analyze.feedback()
+    fb.pop(artist, None) if vote == 0 else fb.update({artist: vote})
+    store.put("feedback", fb)
+    return jsonify(ok=True, liked=sum(v > 0 for v in fb.values()), passed=sum(v < 0 for v in fb.values()))
 
 
 @app.get("/api/deep-cuts")

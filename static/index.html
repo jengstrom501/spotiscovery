@@ -188,6 +188,9 @@
   .card a.name:hover { color: var(--accent); }
   .card .meta { font-size: 12px; color: var(--fg-dim); }
   .card .why { font-size: 12.5px; color: var(--fg-dim); line-height: 1.45; }
+  .card .fb { display: flex; gap: 14px; margin-top: 8px; }
+  .card .fb .liked { color: var(--accent); }
+  h3.shelf { grid-column: 1 / -1; font-size: 15px; font-weight: 600; margin: 18px 0 -4px; padding-top: 16px; border-top: 1px solid var(--line); }
   .pl-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 12px 0 4px; }
   .pl-row button { padding: 6px 14px; font-size: 13px; }
   .pl-row .status { min-height: 0; }
@@ -821,7 +824,7 @@ function uploadWithProgress(path, body, onProgress) {
 function reveal(container) {
   [...container.children].filter((el) => !el.hidden).forEach((el, i) => {
     el.classList.add("reveal");
-    setTimeout(() => el.classList.add("show"), 30 + i * 60);
+    setTimeout(() => el.classList.add("show"), 30 + Math.min(i, 10) * 60);  // capped: long lists shouldn't take seconds
   });
 }
 const skeleton = (n) => Array.from({ length: n }, () =>
@@ -2153,13 +2156,33 @@ const blendTitle = (tags) => tags.map(esc).join(`<span class="x">×</span>`);
 const OBSCURITY_LABELS = { "0": "No filter", "0.25": "Slight lean to lesser-known", "0.5": "Balanced",
   "0.75": "Leans lesser-known", "1": "Strongly favors lesser-known" };
 function updateObscurityLabel() { $("obscurity-label").textContent = OBSCURITY_LABELS[$("obscurity").value] || ""; }
+// Thumbs on a pick: "More like this" makes it a seed next run, "Not for me" drops it. Both keep it out of future picks.
+$("similar-body").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-fb]");
+  if (!b) return;
+  const vote = +b.dataset.fb, cardEl = b.closest(".card");
+  try {
+    await api("/api/feedback", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ artist: b.dataset.nm, vote }) });
+  } catch (err) { return say("similar-status", err.message, true); }
+  if (vote < 0) cardEl.remove();
+  else b.parentElement.innerHTML = `<span class="small liked">Liked. Find artists again for more like it.</span>`;
+});
 function runSimilar() {
   const out = $("similar-body");
   out.innerHTML = skeleton(9);
   return run("similar-status", FIRST_RUN, async () => {
     const recs = await api("/api/similar?obscurity=" + $("obscurity").value);
+    // Shelves: one per scene with 3+ picks, in the order their best pick ranks; the rest share "More sounds"
+    const by = {};
+    recs.forEach((r) => (by[r.scene] ||= []).push(r));
+    const big = Object.entries(by).filter(([, v]) => v.length >= 3), more = recs.filter((r) => by[r.scene].length < 3);
+    const fb = (r) => `<div class="fb"><button class="link small" data-fb="1" data-nm="${esc(r.name)}">More like this</button>
+      <button class="link small" data-fb="-1" data-nm="${esc(r.name)}">Not for me</button></div>`;
+    const shelf = (title, rs) => `<h3 class="shelf">${esc(title)} <span class="dim mono small">${rs.length}</span></h3>` + rs.map((r) => card(r, fb(r))).join("");
     out.innerHTML = recs.length ? `<div style="grid-column: 1 / -1">${playlistButton("Spotiscovery: similar sound",
-        recs.map((r) => ({ artist: r.name })))}</div>` + recs.map((r) => card(r)).join("")
+        recs.map((r) => ({ artist: r.name })))}</div>`
+        + big.map(([sc, rs]) => shelf(sc[0].toUpperCase() + sc.slice(1), rs)).join("") + (more.length ? shelf("More sounds", more) : "")
       : `<div class="empty" style="grid-column: 1 / -1">Nothing new at this setting. Try moving the slider.</div>`;
     reveal(out);
   }, out, $("run-similar"), { tasks: ["similar", "cards"] });
