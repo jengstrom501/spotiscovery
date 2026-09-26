@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Spotiscovery</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23BFE35A'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%230E0E0C'/%3E%3C/svg%3E">
+<link rel="icon" id="favicon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%231DB954'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%230E0E0C'/%3E%3C/svg%3E">
+<script>try { if (JSON.parse(localStorage.getItem("sp.theme")) === "cvd") document.documentElement.dataset.theme = "cvd"; } catch {}</script>
 <link rel="preload" href="/static/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
 <!-- Third-party scripts are pinned to exact versions with integrity hashes: a changed file just won't run. -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"
@@ -18,13 +19,21 @@
     --bg: #0E0E0C; --surface: #171715; --surface-2: #1F1F1C; --raise: #282824;
     --line: #2A2A26; --line-soft: #1E1E1B;
     --fg: #ECE9E2; --fg-dim: #A09B90; --fg-faint: #5E5A53;
-    --accent: #5CB0FF; --accent-hover: #7CC0FF; --accent-ink: #06121F; --accent-soft: rgba(92,176,255,.12);
-    --danger: #F0914A;
+    /* Theme: Spotify green by default. Colorblind mode (below) swaps to blue with orange for errors, a pair that
+       stays distinct with red/green color blindness. JS reads these same variables for charts and the recap card. */
+    --accent: #1DB954; --accent-hover: #1ED760; --accent-ink: #04140A; --accent-rgb: 29,185,84; --accent-soft: rgba(29,185,84,.12);
+    --danger: #F2646A;
+    --ramp-1: #0f6b31; --ramp-2: #159a46; --ramp-3: #1DB954; --ramp-4: #7fe3a1;  /* parts of the day, dark to light */
     /* Radius rule: cards 14px, controls (buttons, inputs) 8px, tags and status pills fully round. */
     --r-card: 14px; --r-ctl: 8px;
     --sans: "Geist", system-ui, sans-serif;
     --mono: "Geist Mono", ui-monospace, monospace;
     --ease: cubic-bezier(.16, 1, .3, 1);
+  }
+  :root[data-theme="cvd"] {
+    --accent: #5CB0FF; --accent-hover: #7CC0FF; --accent-ink: #06121F; --accent-rgb: 92,176,255; --accent-soft: rgba(92,176,255,.12);
+    --danger: #F0914A;
+    --ramp-1: #184f95; --ramp-2: #256abf; --ramp-3: #5598e7; --ramp-4: #86b6ef;
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
@@ -88,6 +97,9 @@
   .st::before { content: ""; width: 7px; height: 7px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid var(--fg-dim); background: transparent; }
   .st.on::before { background: var(--accent); border-color: var(--accent); }
   #setup-toggle { padding: 7px 14px; }
+  #cvd-toggle { padding: 7px 12px; font-size: 13px; color: var(--fg-dim); }
+  #cvd-toggle[aria-pressed="true"] { color: var(--fg); border-color: var(--accent); }
+  #cvd-toggle[aria-pressed="true"]::before { content: "✓ "; color: var(--accent); }
 
   /* ---- setup */
   .setup-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); padding: 28px; margin-bottom: 40px; }
@@ -122,7 +134,7 @@
   .heat .lab { align-self: center; }
   .heat .peak { outline: 2px solid var(--fg); outline-offset: 1px; }
   .heat-key { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 12px; color: var(--fg-dim); }
-  .heat-key i { width: 120px; height: 8px; border-radius: 99px; background: linear-gradient(90deg, rgba(92,176,255,.04), rgb(92,176,255)); }
+  .heat-key i { width: 120px; height: 8px; border-radius: 99px; background: linear-gradient(90deg, rgba(var(--accent-rgb),.04), rgb(var(--accent-rgb))); }
   .heat-key .mono { margin-left: 8px; }
 
   /* ---- headline insights: one sentence each, the "so what" before the charts */
@@ -318,7 +330,7 @@
   .cal-year { display: grid; grid-template-columns: 44px auto; align-items: start; gap: 10px; }
   .cal-grid { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 13px); grid-auto-columns: 13px; gap: 3px; }
   .cal-grid i { border-radius: 3px; background: var(--surface-2); }
-  .cal-grid i[style] { background: rgba(92,176,255,var(--a)); }
+  .cal-grid i[style] { background: rgba(var(--accent-rgb), var(--a)); }
   .cal-grid i[data-day] { cursor: pointer; }
   .cal-grid i[data-day]:hover { outline: 2px solid var(--fg); outline-offset: 1px; }
   .cal-grid i.out { background: none; }
@@ -555,6 +567,7 @@
     </nav>
     <div class="top-right">
       <div class="states" id="chips"></div>
+      <button id="cvd-toggle" aria-pressed="false" title="Swap green for blue and orange, which stay distinct with red/green color blindness (deuteranopia)">Colorblind mode</button>
       <button id="setup-toggle" aria-expanded="false" aria-controls="setup">Setup</button>
     </div>
   </div>
@@ -1227,18 +1240,18 @@ function renderExplore(r) {
   const axes = { x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkipPadding: 12 } }, y: { grid, beginAtZero: true, border: { display: false } } };
   const hTip = { callbacks: { label: (c) => ` ${fmtH(c.parsed.y)}` } };
   chart("ex-wd", { type: "bar", data: { labels: DAYS.map((d) => d.slice(0, 3)), datasets: [{ label: "Average per day", data: wd,
-    backgroundColor: wd.map((_, i) => i === today ? ACCENT : "rgba(92,176,255,.32)"), borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: "bottom", maxBarThickness: 44 }] },
+    backgroundColor: wd.map((_, i) => i === today ? ACCENT : acc(.32)), borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: "bottom", maxBarThickness: 44 }] },
     options: { scales: axes, plugins: { legend: { display: false }, tooltip: hTip } } }, "explore");
   chart("ex-hour", { type: "line", data: { labels: Array.from({ length: 24 }, (_, h) => `${h}:00`), datasets: [{ label: "Minutes per day",
-    data: r.hour_avg_min, borderColor: ACCENT, borderWidth: 2, fill: true, backgroundColor: "rgba(92,176,255,.1)", pointRadius: 0,
+    data: r.hour_avg_min, borderColor: ACCENT, borderWidth: 2, fill: true, backgroundColor: acc(.1), pointRadius: 0,
     pointHoverRadius: 4, pointHoverBackgroundColor: ACCENT, tension: 0.35 }] },
     options: { scales: axes, interaction: { mode: "index", intersect: false },
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${c.parsed.y} min per day` } } } } }, "explore");
   chart("ex-dist", { type: "bar", data: { labels: r.distribution.labels, datasets: [{ label: "Days", data: r.distribution.days,
-    backgroundColor: r.distribution.days.map((_, i) => i ? "rgba(92,176,255,.6)" : "#3A3A34"), borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: "bottom" }] },
+    backgroundColor: r.distribution.days.map((_, i) => i ? acc(.6) : "#3A3A34"), borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: "bottom" }] },
     options: { scales: axes, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${c.parsed.y} days` } } } } }, "explore");
   chart("ex-series", { type: "bar", data: { labels: series.keys.map(unitLabel), datasets: [{ label: "Hours", data: series.hours,
-    backgroundColor: series.hours.map((_, i) => i === peakI ? ACCENT : "rgba(92,176,255,.45)"), hoverBackgroundColor: ACCENT,
+    backgroundColor: series.hours.map((_, i) => i === peakI ? ACCENT : acc(.45)), hoverBackgroundColor: ACCENT,
     borderRadius: { topLeft: 3, topRight: 3 }, borderSkipped: "bottom", maxBarThickness: 28 }] },
     options: { scales: axes, onHover: (e, els) => (e.native.target.style.cursor = els.length ? "pointer" : "default"),
       onClick: (_, els) => {
@@ -1411,7 +1424,7 @@ async function openArtist(name) {
           <em class="mono">${x.plays} plays${x.skip_rate >= 30 ? `, ${x.skip_rate}% skipped` : ""}</em></li>`).join("") || "<li class=dim>No plays in this period</li>"}</ol></div>
         <div><h3>When you play them</h3>
           <div class="heat heat-mini">${r.heat.map((row, d) => `<span class="lab">${DAYS[d].slice(0, 3)}</span>` + row.map((h, hr) =>
-            `<div title="${DAYS[d]} ${hr}:00, ${fmtH(h)}" style="background: rgba(92,176,255,${(0.04 + 0.96 * h / peak).toFixed(2)})"></div>`).join("")).join("")}
+            `<div title="${DAYS[d]} ${hr}:00, ${fmtH(h)}" style="background: rgba(${ACC_RGB},${(0.04 + 0.96 * h / peak).toFixed(2)})"></div>`).join("")).join("")}
             <span></span>${Array.from({ length: 24 }, (_, i) => `<span class="lab">${i % 6 ? "" : i}</span>`).join("")}</div>
           ${r.albums.length ? `<h3 style="margin-top:22px">Albums</h3><ul class="plain">${r.albums.map(([al, h]) => `<li><span>${esc(al)}</span><em class="mono">${fmtH(h)}</em></li>`).join("")}</ul>` : ""}</div>
       </div>
@@ -1424,7 +1437,7 @@ async function openArtist(name) {
     const inRange = (m) => m >= r.start.slice(0, 7) && m <= r.end.slice(0, 7);
     const axes = { x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkipPadding: 14 } }, y: { grid, beginAtZero: true, border: { display: false } } };
     chart("a-months", { type: "bar", data: { labels: r.months.map(month), datasets: [{ label: "Hours", data: r.hours_by_month,
-      backgroundColor: r.months.map((m) => isAll || inRange(m) ? ACCENT : "rgba(92,176,255,.3)"), borderRadius: { topLeft: 2, topRight: 2 }, borderSkipped: "bottom" }] },
+      backgroundColor: r.months.map((m) => isAll || inRange(m) ? ACCENT : acc(.3)), borderRadius: { topLeft: 2, topRight: 2 }, borderSkipped: "bottom" }] },
       options: { scales: axes, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${fmtH(c.parsed.y)}` } } } } }, "artist");
     chart("a-share", { type: "line", data: { labels: r.months.map(month), datasets: [{ label: "Share", data: r.share_by_month,
       borderColor: ACCENT, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: ACCENT, tension: 0.3 }] },
@@ -1506,7 +1519,7 @@ const closeOtherDrawers = (keep) => document.querySelectorAll("dialog.drawer[ope
 // Plays-per-cell heatmap by weekday and hour, shared by the artist and song pages
 const miniHeat = (heat, unit) => { const peak = Math.max(...heat.flat()) || 1;
   return `<div class="heat heat-mini">${heat.map((row, d) => `<span class="lab">${DAYS[d].slice(0, 3)}</span>` + row.map((v, hr) =>
-    `<div title="${DAYS[d]} ${hr}:00, ${unit(v)}" style="background: rgba(92,176,255,${(0.04 + 0.96 * v / peak).toFixed(2)})"></div>`).join("")).join("")}
+    `<div title="${DAYS[d]} ${hr}:00, ${unit(v)}" style="background: rgba(${ACC_RGB},${(0.04 + 0.96 * v / peak).toFixed(2)})"></div>`).join("")).join("")}
     <span></span>${Array.from({ length: 24 }, (_, i) => `<span class="lab">${i % 6 ? "" : i}</span>`).join("")}</div>`; };
 
 async function openSong(artistName, track) {
@@ -1552,7 +1565,7 @@ async function openSong(artistName, track) {
       </div>` : ""}`;
     const inRange = (m) => m >= r.start.slice(0, 7) && m <= r.end.slice(0, 7);
     chart("s-months", { type: "bar", data: { labels: r.months.map(month), datasets: [{ label: "Plays", data: r.plays_by_month,
-      backgroundColor: r.months.map((m) => isAll || inRange(m) ? ACCENT : "rgba(92,176,255,.3)"), borderRadius: { topLeft: 2, topRight: 2 }, borderSkipped: "bottom" }] },
+      backgroundColor: r.months.map((m) => isAll || inRange(m) ? ACCENT : acc(.3)), borderRadius: { topLeft: 2, topRight: 2 }, borderSkipped: "bottom" }] },
       options: { scales: { x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkipPadding: 14 } }, y: { grid, beginAtZero: true, border: { display: false }, ticks: { precision: 0 } } },
         plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${c.parsed.y} plays` } } } } }, "song");
   });
@@ -1670,7 +1683,7 @@ async function renderMap(el, tv) {
     const maxDays = Math.max(1, ...away.map((c) => c.days));
     el.innerHTML = `<svg class="map" viewBox="0 0 ${W} ${H}" role="img" aria-label="Map of the countries you've listened in">${land.map((f) => {
       const c = byId[f.id], home = c && c.code === tv.home;
-      const fill = !c ? "var(--surface-2)" : home ? "rgba(92,176,255,.22)" : `rgba(92,176,255,${(0.45 + 0.55 * Math.log1p(c.days) / Math.log1p(maxDays)).toFixed(2)})`;
+      const fill = !c ? "var(--surface-2)" : home ? acc(.22) : `rgba(${ACC_RGB},${(0.45 + 0.55 * Math.log1p(c.days) / Math.log1p(maxDays)).toFixed(2)})`;
       return `<path d="${path(f)}" fill="${fill}"${c ? ` class="hit"` : ""}>${c ? `<title>${esc(countryName(c.code))}${home ? " (home)" : ""}: ${c.days} days, ${fmtH(c.hours)}</title>` : ""}</path>`;
     }).join("")}</svg>`;
   } catch (e) {
@@ -1694,7 +1707,7 @@ document.addEventListener("click", (e) => {
 
 // ---- recap card: drawn on a canvas so it exports as a PNG that looks the same everywhere it's posted
 const recap = { data: null, shape: "story", photos: {}, on: new Set() };
-const INK = { bg: "#0E0E0C", surface: "#171715", line: "#2A2A26", fg: "#ECE9E2", dim: "#A09B90", accent: "#5CB0FF" };
+const INK = { bg: "#0E0E0C", surface: "#171715", line: "#2A2A26", fg: "#ECE9E2", dim: "#A09B90", get accent() { return ACCENT; } };
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const CARD_SLOTS = { story: 4, square: 4 };  // the headline plus the supporting insights that fit each shape
 
@@ -1849,7 +1862,7 @@ async function drawRecap() {
     const base = y + 40 + chartH;
     pf.months.forEach((mo, i) => {
       const bh = Math.max(2, pf.hours_by_month[i] / top * chartH), inYear = allTime || mo.startsWith(r.year);
-      ctx.fillStyle = inYear ? INK.accent : "rgba(92,176,255,.26)";
+      ctx.fillStyle = inYear ? INK.accent : acc(.26);
       ctx.beginPath(); ctx.roundRect(x + i * (bw + gap), base - bh, bw, bh, Math.min(3, bw / 2)); ctx.fill();
     });
     ctx.fillStyle = INK.line; ctx.fillRect(x, base + 2, w, 2);
@@ -1865,7 +1878,7 @@ async function drawRecap() {
     (r.eras || []).forEach((e, k) => {
       const a = idx(e.start, false), b = idx(e.end, true), sx = x + a * (bw + gap), sw = Math.max(4, (b - a + 1) * (bw + gap) - gap);
       const cur = k === r.eras.length - 1;
-      ctx.fillStyle = cur ? "rgba(92,176,255,.22)" : k % 2 ? INK.line : "#33332E";
+      ctx.fillStyle = cur ? acc(.22) : k % 2 ? INK.line : "#33332E";
       ctx.beginPath(); ctx.roundRect(sx, bandY, sw - 3, bandH, 10); ctx.fill();
       if (sw > 130) text(e.tags[0], sx + 14, bandY + bandH / 2 + 7, { size: opt.tag || 20, weight: 600, color: cur ? INK.accent : INK.fg, maxWidth: sw - 34, minSize: 14 });
     });
@@ -2006,9 +2019,26 @@ window.onpopstate = () => {
 
 // ---- charts (categorical palette validated with the dataviz skill: CVD dE >= 8.4, all >= 3:1 on dark surfaces)
 const SERIES = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"];
-const ACCENT = "#5CB0FF";
-// Parts of the day run in order, so they get one hue, dark to light (validated as an ordinal ramp on the card surface)
-const DAY_RAMP = ["#184f95", "#256abf", "#5598e7", "#86b6ef"];
+// Theme colors, read from the CSS variables so there is one source of truth. applyTheme() re-reads them on a switch.
+let ACCENT, ACC_RGB, DAY_RAMP;
+const acc = (a) => `rgba(${ACC_RGB},${a})`;
+function applyTheme() {
+  const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  ACCENT = css("--accent"); ACC_RGB = css("--accent-rgb");
+  // Parts of the day run in order, so they get one hue, dark to light
+  DAY_RAMP = [1, 2, 3, 4].map((i) => css("--ramp-" + i));
+  $("favicon").href = "data:image/svg+xml," + encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='15' fill='${ACCENT}'/><circle cx='16' cy='16' r='3' fill='#0E0E0C'/></svg>`);
+  const on = document.documentElement.dataset.theme === "cvd";
+  $("cvd-toggle").setAttribute("aria-pressed", on);
+}
+applyTheme();
+$("cvd-toggle").onclick = () => {
+  const on = document.documentElement.dataset.theme !== "cvd";
+  on ? (document.documentElement.dataset.theme = "cvd") : delete document.documentElement.dataset.theme;
+  setPref("theme", on ? "cvd" : "default");
+  applyTheme();
+  refreshTabs();  // charts and the recap card have the old colors baked in; redraw them
+};
 Chart.defaults.color = "#A09B90";
 Chart.defaults.font.family = "Geist, system-ui, sans-serif";
 Chart.defaults.font.size = 12;
@@ -2129,7 +2159,7 @@ async function loadTrends() {
           <button class="link small" data-artist="${esc(a.name)}">Your history with them</button>`)).join("")}</div></div>` : ""}
       <div class="block"><h2>You listen most on ${days[hd]}s around ${hh}:00</h2><p class="dim">Hours by weekday and hour, your local time.</p>
         <div class="heat">${t.heatmap.map((row, d) => `<span class="lab">${days[d].slice(0, 3)}</span>` + row.map((h, hr) =>
-          `<div title="${days[d]} ${hr}:00, ${h} h" class="${d === hd && hr === hh ? "peak" : ""}" style="background: rgba(92,176,255,${(0.04 + 0.96 * h / max).toFixed(2)})"></div>`).join("")).join("")}
+          `<div title="${days[d]} ${hr}:00, ${h} h" class="${d === hd && hr === hh ? "peak" : ""}" style="background: rgba(${ACC_RGB},${(0.04 + 0.96 * h / max).toFixed(2)})"></div>`).join("")).join("")}
           <span></span>${Array.from({ length: 24 }, (_, i) => `<span class="lab">${i % 6 ? "" : i}</span>`).join("")}
         </div>
         <div class="heat-key"><span>Less</span><i></i><span>More</span><span class="mono">up to ${max} h</span></div></div>
@@ -2142,7 +2172,7 @@ async function loadTrends() {
     // Emphasis: the peak month in the accent, the rest muted, so the title's claim is visible at a glance
     chart("c-hours", { data: { labels: t.months.map(month), datasets: [
       { type: "line", label: "3-month average", data: avg3, borderColor: "#ECE9E2", borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.35, order: 0 },
-      { type: "bar", label: "Hours", data: t.hours, order: 1, backgroundColor: t.hours.map((_, i) => i === peakI ? ACCENT : "rgba(92,176,255,.38)"),
+      { type: "bar", label: "Hours", data: t.hours, order: 1, backgroundColor: t.hours.map((_, i) => i === peakI ? ACCENT : acc(.38)),
         hoverBackgroundColor: ACCENT, borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: "bottom", maxBarThickness: 28 }] },
       options: { scales: axes, interaction: { mode: "index", intersect: false }, plugins: { legend },
         onHover: (e, els) => (e.native.target.style.cursor = els.length ? "pointer" : "default"),
@@ -2158,7 +2188,7 @@ async function loadTrends() {
         plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${fmt(c.parsed.y)} listeners` } } } } });
     const top = Math.max(...drift.flatMap((d) => d.share));  // one scale for every panel, so they compare honestly
     drift.forEach((d, i) => chart(`c-tag-${i}`, { type: "line", data: { labels: t.drift.quarters.map(quarter), datasets: [{ label: d.tag,
-      data: d.share, borderColor: ACCENT, borderWidth: 2, fill: true, backgroundColor: "rgba(92,176,255,.12)", pointRadius: 0,
+      data: d.share, borderColor: ACCENT, borderWidth: 2, fill: true, backgroundColor: acc(.12), pointRadius: 0,
       pointHoverRadius: 4, pointHoverBackgroundColor: ACCENT, tension: 0.35 }] },
       options: { scales: { x: { display: false }, y: { display: false, min: 0, max: top } }, interaction: { mode: "index", intersect: false },
         plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${c.parsed.y}% of your listening` } } } } }));

@@ -94,7 +94,7 @@ Artist photos come from Spotify, or from Deezer's public search when Spotify has
 
 Release dates for "you found them early" come from MusicBrainz (free, no key). It allows one request per second, so the first recap checks a few artists and finishes the rest in the background; run it again a few minutes later.
 
-The colors are chosen to be readable with any common color blindness: one blue accent, with orange for drops and errors (a pair that stays distinct for red/green and blue/yellow color blindness), changes carry arrows and signs, and the time-of-day chart uses a single blue ramp.
+The default look is Spotify green. **Colorblind mode** (button in the header, remembered in your browser) swaps it for blue with orange for errors, a pair that stays distinct with red/green color blindness (deuteranopia). In both modes nothing relies on color alone: changes carry arrows and signs, and the time-of-day chart uses a single-hue ramp.
 
 ## How it works
 

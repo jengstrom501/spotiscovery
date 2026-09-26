@@ -569,6 +569,20 @@ def issue_public_release_hardening():
         assert "evil.example" in str(e)
 
 
+def feature_theme_tokens():
+    # Feature: Spotify green by default, colorblind mode swaps every theme variable. The blue must not be hardcoded
+    # in chart or canvas code, or the toggle would leave blue bars behind in green mode.
+    import re
+    html = open(os.path.join(os.path.dirname(deep_cuts.__file__), "static", "index.html"), encoding="utf-8").read()
+    root = re.search(r":root \{(.*?)\n  \}", html, re.S).group(1)
+    cvd = re.search(r':root\[data-theme="cvd"\] \{(.*?)\n  \}', html, re.S).group(1)
+    names = lambda block: set(re.findall(r"(--(?:accent|danger|ramp)[\w-]*):", block))
+    assert "--accent: #1DB954" in root and names(cvd) <= names(root), (names(cvd), names(root))
+    assert {"--accent", "--accent-rgb", "--danger", "--ramp-1", "--ramp-4"} <= names(cvd)
+    assert "92,176,255" not in html.replace(cvd, "") and "5CB0FF" not in html.replace(cvd, ""), "blue hardcoded outside the cvd theme"
+    assert 'id="cvd-toggle"' in html and "sp.theme" in html
+
+
 if __name__ == "__main__":
     for name, check in list(globals().items()):
         if name.startswith(("issue_", "feature_")):
