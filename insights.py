@@ -106,22 +106,25 @@ def _warm(names):
     threading.Thread(target=run, daemon=True).start()
 
 
-def found_early(c, lf, e, min_listeners=1_500_000, max_gap_days=730, budget_s=30, check=40):
+def early_finds(c, lf, e, since=None, until=None, min_listeners=1_000_000, max_gap_days=730, budget_s=30, check=40, task="recap"):
     """Artists you played within ~2 years of their first release and who are big today. Last.fm only knows
     today's listener count, so "were they small then" comes from MusicBrainz's first release date instead:
-    you were there at the start. Uses cached lookups, spends up to budget_s on new ones, and finishes the rest
-    in the background. Returns the biggest such artist as {name, first, gap_days, listeners, hours} or None."""
+    you were there at the start. Only artists first played between since and until (at most a year before e) count (they need
+    time to blow up). Uses cached lookups, spends up to budget_s on new ones, and finishes the rest in the
+    background. Returns (finds biggest first, how many are still being looked up); each find is
+    {name, first, debut, gap_days, listeners, hours}."""
     firsts, total = c["first_artist"], Counter()
     for p in c["rows"]:
         total[p.artist] += p.ms / 3.6e6
     pool = []
-    for a, h in total.most_common(check * 2):  # your favorites first: artists you really played, not one-offs
-        if h >= 2 and firsts[a] <= e - timedelta(days=365):
+    top = total.most_common(check * 2)  # your favorites first: artists you really played, not one-offs
+    for a, h in store.track(task, top, "Checking how big each artist is today"):
+        if h >= 2 and (since is None or firsts[a] >= since) and firsts[a] <= min(until or e, e - timedelta(days=365)):
             inf = lf.info(a)
             if inf and inf.get("listeners", 0) >= min_listeners:
                 pool.append((a, h, inf["listeners"]))
-    best, deadline, later = None, time.time() + budget_s, []
-    for a, h, listeners in store.track("recap", pool[:check], "Checking when artists debuted"):
+    finds, deadline, later = [], time.time() + budget_s, []
+    for a, h, listeners in store.track(task, pool[:check], "Checking when artists debuted"):
         known, d = musicbrainz.cached_debut(a)
         if not known:
             if time.time() > deadline or _warming:
@@ -134,11 +137,18 @@ def found_early(c, lf, e, min_listeners=1_500_000, max_gap_days=730, budget_s=30
         if not d:
             continue
         gap = (firsts[a] - date.fromisoformat(d)).days
-        if -60 <= gap <= max_gap_days and (best is None or listeners > best["listeners"]):  # a month or two of date slop
-            best = {"name": a, "first": firsts[a].isoformat(), "gap_days": max(gap, 0), "listeners": listeners, "hours": h}
+        if -60 <= gap <= max_gap_days:  # a month or two of date slop
+            finds.append({"name": a, "first": firsts[a].isoformat(), "debut": d, "gap_days": max(gap, 0),
+                          "listeners": listeners, "hours": round(h, 1)})
     if later and not _warming:
         _warm(later)
-    return best
+    return sorted(finds, key=lambda f: -f["listeners"]), len(later)
+
+
+def found_early(c, lf, e, **kw):
+    """The biggest artist you found early, or None."""
+    finds, _ = early_finds(c, lf, e, **kw)
+    return finds[0] if finds else None
 
 
 def find(lf, start, end, label, prev_label=None, recap=None, eras=None):

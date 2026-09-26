@@ -4,6 +4,7 @@ import os
 import re
 import traceback
 import zipfile
+from datetime import date
 from urllib.parse import quote
 
 import requests
@@ -257,6 +258,24 @@ def artist_page():
 @app.get("/api/day")
 def day_page():
     return jsonify(explore.day(request.args.get("date")))
+
+
+@app.get("/api/found-early")
+def found_early():
+    """Every artist you found early, first played in [start, end] (default all time). pending = artists still
+    being looked up on MusicBrainz in the background; the page polls until it's 0."""
+    if not os.environ.get("LASTFM_API_KEY"):
+        return jsonify(finds=[], pending=0, note="Needs a Last.fm key: it knows how big each artist is today.")
+    c = explore.plays()
+    if not c["rows"]:
+        return jsonify(finds=[], pending=0)
+    day = lambda k: date.fromisoformat(request.args[k]) if request.args.get(k) else None
+    try:
+        since, until = day("start"), day("end")
+    except ValueError:
+        return jsonify(error="Dates must look like 2024-01-31."), 400
+    finds, pending = insights.early_finds(c, lastfm, c["rows"][-1].day, since, until, budget_s=8, check=150, task="early")
+    return jsonify(finds=with_cards(finds), pending=pending)
 
 
 @app.get("/api/recap")

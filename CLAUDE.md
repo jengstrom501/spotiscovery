@@ -14,7 +14,7 @@ Read STATUS.md, show state + next step, wait for direction.
 
 ## Look
 Own identity, NOT Claude OS DESIGN.md: Geist + Geist Mono (self-hosted in static/fonts, OFL),
-warm near-black + one lime accent #BFE35A, dark only. Radius: cards 14, controls 8, tags pill.
+warm near-black + one blue accent #5CB0FF (orange #F0914A for down/errors: a CVD-safe pair), dark only. Radius: cards 14, controls 8, tags pill.
 
 ## Skills & agents
 - design-taste-frontend — before visual changes (no em-dashes in UI copy)

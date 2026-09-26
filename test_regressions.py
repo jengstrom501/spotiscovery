@@ -402,6 +402,9 @@ def feature_found_early():
         c = ex.plays()
         got = ins.found_early(c, LF(), date(2034, 1, 1))
         assert got and got["name"] == "Day Band" and got["listeners"] == 3_000_000 and 100 < got["gap_days"] < 200, got
+        finds, pending = ins.early_finds(c, LF(), date(2034, 1, 1))  # the full list for the Found early section
+        assert [f["name"] for f in finds] == ["Day Band"] and finds[0]["debut"] == "2031-08-01" and pending == 0, finds
+        assert ins.early_finds(c, LF(), date(2034, 1, 1), since=date(2032, 2, 1))[0] == []  # first played before the period
         assert ins.found_early(c, LF(), date(2032, 6, 1)) is None  # played under a year before this period ends
         debuts["Day Band"] = "2010-01-01"  # long established when you found them
         assert ins.found_early(c, LF(), date(2034, 1, 1)) is None

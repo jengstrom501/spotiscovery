@@ -16,8 +16,8 @@
     --bg: #0E0E0C; --surface: #171715; --surface-2: #1F1F1C; --raise: #282824;
     --line: #2A2A26; --line-soft: #1E1E1B;
     --fg: #ECE9E2; --fg-dim: #A09B90; --fg-faint: #5E5A53;
-    --accent: #BFE35A; --accent-hover: #CDEB72; --accent-ink: #12140A; --accent-soft: rgba(191,227,90,.12);
-    --danger: #E58A7A;
+    --accent: #5CB0FF; --accent-hover: #7CC0FF; --accent-ink: #06121F; --accent-soft: rgba(92,176,255,.12);
+    --danger: #F0914A;
     /* Radius rule: cards 14px, controls (buttons, inputs) 8px, tags and status pills fully round. */
     --r-card: 14px; --r-ctl: 8px;
     --sans: "Geist", system-ui, sans-serif;
@@ -120,7 +120,7 @@
   .heat .lab { align-self: center; }
   .heat .peak { outline: 2px solid var(--fg); outline-offset: 1px; }
   .heat-key { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 12px; color: var(--fg-dim); }
-  .heat-key i { width: 120px; height: 8px; border-radius: 99px; background: linear-gradient(90deg, rgba(191,227,90,.04), rgb(191,227,90)); }
+  .heat-key i { width: 120px; height: 8px; border-radius: 99px; background: linear-gradient(90deg, rgba(92,176,255,.04), rgb(92,176,255)); }
   .heat-key .mono { margin-left: 8px; }
 
   /* ---- headline insights: one sentence each, the "so what" before the charts */
@@ -245,6 +245,39 @@
   input[type=month], input[type=date] { font: 13.5px var(--sans); color: var(--fg); background: var(--bg); border: 1px solid var(--line);
                                         border-radius: var(--r-ctl); padding: 6px 10px; color-scheme: dark; }
   .custom button { padding: 7px 14px; font-size: 13.5px; }
+  /* Explore sub-tabs sit on the period bar's bottom border, like the main tabs sit on the header's */
+  .subnav { flex-basis: 100%; display: flex; align-items: center; gap: 12px; margin-bottom: -14px; min-width: 0; }
+  .subtabs { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; min-width: 0; }
+  .subtabs button { background: none; border: 0; border-radius: 0; padding: 12px 12px; color: var(--fg-dim); font-size: 14px;
+                    position: relative; white-space: nowrap; transform: none; }
+  .subtabs button:first-child { padding-left: 0; }
+  .subtabs button:hover, .subtabs button[aria-selected="true"] { color: var(--fg); }
+  .subtabs button[aria-selected="true"]::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 0; height: 2px; background: var(--accent); }
+  .subtabs button:first-child::after { left: 0 !important; }
+  .customize { margin-left: auto; position: relative; flex: none; }
+  .customize summary { list-style: none; cursor: pointer; font-size: 13.5px; color: var(--fg-dim); padding: 6px 12px;
+                       border: 1px solid var(--line); border-radius: var(--r-ctl); }
+  .customize summary::-webkit-details-marker { display: none; }
+  .customize summary:hover, .customize[open] summary { color: var(--fg); border-color: #45453E; }
+  .customize summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .customize-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; width: 290px; max-height: min(70vh, 560px); overflow: auto;
+                   background: var(--raise); border: 1px solid #45453E; border-radius: var(--r-card); padding: 14px 16px 16px; box-shadow: 0 18px 40px rgba(0,0,0,.5); }
+  .customize-pop fieldset { border: 0; margin: 14px 0 0; padding: 0; }
+  .customize-pop legend { font-size: 13px; font-weight: 600; padding: 0; margin-bottom: 2px; }
+  .customize-pop label { display: flex; gap: 10px; align-items: center; font-size: 13.5px; padding: 4px 0; cursor: pointer; color: var(--fg-dim); }
+  .customize-pop label:hover { color: var(--fg); }
+  .customize-pop input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; flex: none; }
+  .customize-pop #customize-all { margin-top: 14px; }
+  #ex-allhidden { margin-top: 28px; }
+  ol.early { list-style: none; margin: 20px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
+  ol.early li { display: grid; grid-template-columns: 22px 56px minmax(0, 1fr); gap: 4px 14px; align-items: center; background: var(--surface);
+                border: 1px solid var(--line); border-radius: var(--r-card); padding: 12px 16px 12px 14px; }
+  ol.early .a-art { width: 56px; height: 56px; border-radius: 50%; }
+  ol.early .a-art .ph { font-size: 18px; }
+  ol.early .who b { font-size: 16px; font-weight: 600; }
+  ol.early .sub { display: block; font-size: 12.5px; color: var(--fg-dim); margin-top: 2px; line-height: 1.45; }
+  ol.early em { grid-column: 3; font-style: normal; font-size: 12.5px; color: var(--fg-dim); }
+  ol.early em b { color: var(--fg); font-size: 13.5px; }
   .ex-head { margin-top: 28px; }
   .ex-head h2 { font-size: 34px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; }
   .ex-head p { margin-top: 6px; }
@@ -265,7 +298,7 @@
   .cal-year { display: grid; grid-template-columns: 44px auto; align-items: start; gap: 10px; }
   .cal-grid { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 13px); grid-auto-columns: 13px; gap: 3px; }
   .cal-grid i { border-radius: 3px; background: var(--surface-2); }
-  .cal-grid i[style] { background: rgba(191,227,90,var(--a)); }
+  .cal-grid i[style] { background: rgba(92,176,255,var(--a)); }
   .cal-grid i[data-day] { cursor: pointer; }
   .cal-grid i[data-day]:hover { outline: 2px solid var(--fg); outline-offset: 1px; }
   .cal-grid i.out { background: none; }
@@ -397,15 +430,20 @@
   .seg button { border: 0; background: none; padding: 7px 16px; color: var(--fg-dim); }
   .seg button[aria-pressed="true"] { background: var(--surface-2); color: var(--fg); }
   .recap-controls .help { margin-top: 8px; }
-  ol.insights-pick { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+  /* Compact rows: kicker, value, and the sentence cut to one line (the full one is on hover and on the card).
+     The card preview stays in view beside the list. */
+  ol.insights-pick { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; }
+  ol.insights-pick li.extra { display: none; }
   ol.insights-pick li { border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface); }
   ol.insights-pick li.on { border-color: #45453E; }
   ol.insights-pick li.off-card { opacity: .6; }
-  ol.insights-pick label { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; padding: 12px 14px; cursor: pointer; margin: 0; font-weight: 400; }
+  ol.insights-pick label { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; padding: 9px 12px; cursor: pointer; margin: 0; font-weight: 400; }
   ol.insights-pick input { accent-color: var(--accent); width: 16px; height: 16px; margin-top: 3px; }
-  ol.insights-pick b { display: block; font-size: 16px; font-weight: 600; margin: 2px 0; }
+  ol.insights-pick b { display: block; font-size: 15px; font-weight: 600; margin: 1px 0; }
   ol.insights-pick .kicker { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  ol.insights-pick .small { display: block; line-height: 1.45; }
+  ol.insights-pick .small { display: block; line-height: 1.45; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .recap-stage { position: sticky; top: 88px; }
+  #recap-more { justify-self: start; width: auto; }
   .recap-stage { display: grid; place-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); padding: 28px; }
   .recap-stage .empty { margin: 0; width: 100%; }
   .recap-stage canvas { display: block; max-width: 100%; max-height: 74vh; width: auto; height: auto; border-radius: 10px;
@@ -437,6 +475,7 @@
   @media (max-width: 900px) {
     .split, .setup-grid { grid-template-columns: 1fr; gap: 0; }
     .recap { grid-template-columns: 1fr; gap: 28px; }
+    .recap-stage { position: static; }
     .daily, .tops, .tops.two { grid-template-columns: 1fr; gap: 24px; }
     .clock { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .bento { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -587,6 +626,13 @@
           <button id="v-apply">Apply</button></span>
         <button id="compare-off">Stop comparing</button>
       </div>
+      <div class="subnav" id="subnav">
+        <div class="subtabs" role="tablist" aria-label="Explore sections" id="subtabs"></div>
+        <details class="customize" id="customize">
+          <summary>Customize</summary>
+          <div class="customize-pop" id="customize-pop"></div>
+        </details>
+      </div>
     </div>
     <p class="status" id="explore-status" role="status" style="margin-top:14px"></p>
     <div id="explore-body"></div>
@@ -678,6 +724,7 @@
           <span class="label">What it figured out</span>
           <p class="help">Strongest first. The first one you tick is the headline; this shape fits <span id="recap-slots">5</span>.</p>
           <ol class="insights-pick" id="recap-insights"></ol>
+          <button class="more" id="recap-more" hidden></button>
         </div>
         <div class="row" style="margin-top:24px">
           <button class="primary" id="recap-download" disabled>Download image</button>
@@ -772,7 +819,7 @@ function uploadWithProgress(path, body, onProgress) {
 }
 // Fades a render's top-level children in with a small stagger, once, as the content lands.
 function reveal(container) {
-  [...container.children].forEach((el, i) => {
+  [...container.children].filter((el) => !el.hidden).forEach((el, i) => {
     el.classList.add("reveal");
     setTimeout(() => el.classList.add("show"), 30 + i * 60);
   });
@@ -918,6 +965,7 @@ async function loadExplore(start, end, push = true) {
     } else {
       r = await api(`/api/explore?start=${start}&end=${end}`);
       if (r.empty) {
+        $("subnav").hidden = true;
         $("explore-body").innerHTML = `<div class="empty">Import your streaming history in Setup to explore it.<br><button onclick="setSetup(true)">Open setup</button></div>`;
         return;
       }
@@ -927,6 +975,7 @@ async function loadExplore(start, end, push = true) {
     if (location.hash !== "#" + exHash()) (push ? history.pushState : history.replaceState).call(history, null, "", "#" + exHash());
     syncPickers(ex.data);
     syncVs(r.b);
+    $("subnav").hidden = !!ex.vs;  // a comparison is one page, no sections
     ex.vs ? renderCompare(r) : renderExplore(r);
     window.scrollTo({ top: 0 });
   }, null, null, { tasks: ["explore"], idle: "Crunching your history" });
@@ -1029,7 +1078,8 @@ function renderExplore(r) {
       <h2>${esc(label)}</h2>
       <p class="dim">${r.days.toLocaleString()} days${pv ? `, compared with ${esc(pvLabel)}` : ""}</p>
     </div>
-    <div class="tiles">
+    <div class="empty" id="ex-allhidden" hidden>Every section is hidden. Pick some under Customize, above.</div>
+    <div class="tiles" data-sec="tiles">
       ${tile("Music", fmtH(s.hours), delta(s.hours, pv && pv.hours))}
       ${tile("Per day", fmtH(s.per_day), delta(s.per_day, pv && pv.per_day))}
       ${tile("Days with music", `${s.listening_days.toLocaleString()} <small>of ${s.days.toLocaleString()}</small>`)}
@@ -1038,7 +1088,7 @@ function renderExplore(r) {
       ${tile("Plays", s.plays.toLocaleString(), delta(s.plays, pv && pv.plays))}
     </div>
 
-    <div class="block">
+    <div class="block" data-sec="daily">
       <div class="daily">
         <div>
           <span class="kicker">Today is ${DAYS[today]}</span>
@@ -1057,26 +1107,26 @@ function renderExplore(r) {
       </div>
     </div>
 
-    ${r.on_this_day && r.on_this_day.length ? `<div class="block"><h2>On this day</h2>
+    ${r.on_this_day && r.on_this_day.length ? `<div class="block" data-sec="otd"><h2>On this day</h2>
       <p class="dim">What you played on ${esc(new Date().toLocaleDateString(undefined, { month: "long", day: "numeric" }))} in other years. Click a year for the whole day.</p>
       <ul class="plain otd">${r.on_this_day.map((d) => `<li>${dayBtn(d.day, d.day.slice(0, 4))}<span>${fmtH(d.hours)}, mostly ${artistBtn(d.artist)}${d.track ? `. On repeat: ${songBtn(d.track, d.track_artist, "")}` : ""}</span></li>`).join("")}</ul></div>` : ""}
 
-    ${r.sound && r.sound.length ? `<div class="block"><h2>${soundTitle(r.sound, pvLabel)}</h2>
+    ${r.sound && r.sound.length ? `<div class="block" data-sec="sound"><h2>${soundTitle(r.sound, pvLabel)}</h2>
       <p class="dim">Share of your listening by genre, from the Last.fm tags of your top artists${pv ? `. Change is in percentage points since ${esc(pvLabel)}` : ""}.</p>
       <ul class="bars sound">${r.sound.map((x) => { const d = x.was == null ? null : Math.round(x.share - x.was);
         return `<li><span>${esc(x.tag)}${d ? ` <span class="chg ${d > 0 ? "up" : ""}">${d > 0 ? "+" : ""}${d} pts</span>` : ""}</span>
           <i style="--w:${(100 * x.share / r.sound[0].share).toFixed(1)}%"></i><em class="mono">${x.share}%</em></li>`; }).join("")}</ul></div>`
-      : r.sound_note ? `<div class="block"><h2>Your sound</h2><p class="dim">${esc(r.sound_note)}</p></div>` : ""}
+      : r.sound_note ? `<div class="block" data-sec="sound"><h2>Your sound</h2><p class="dim">${esc(r.sound_note)}</p></div>` : ""}
 
-    <div class="block"><h2>Every day</h2><p class="dim">Brighter means more music. Click a day to see exactly what you played.</p>
+    <div class="block" data-sec="calendar"><h2>Every day</h2><p class="dim">Brighter means more music. Click a day to see exactly what you played.</p>
       <div class="cal">${calendarHTML(r)}</div>
       <div class="heat-key"><span>Less</span><i></i><span>More</span></div></div>
 
-    <div class="block"><h2>Busiest ${series.unit}: ${esc(unitLabel(series.keys[peakI]))}, ${fmtH(series.hours[peakI])}</h2>
+    <div class="block" data-sec="series"><h2>Busiest ${series.unit}: ${esc(unitLabel(series.keys[peakI]))}, ${fmtH(series.hours[peakI])}</h2>
       <p class="dim">Hours per ${series.unit}. ${series.unit === "day" ? "Click a bar for that day's plays." : `Click a bar to zoom into that ${series.unit}.`}</p>
       <div class="chart-box"><canvas id="ex-series" role="img" aria-label="Listening per ${series.unit}"></canvas></div></div>
 
-    <div class="block"><h2>Top of ${esc(label)}</h2>${pv ? `<p class="dim">Arrows show rank change since ${esc(pvLabel)}.</p>` : ""}
+    <div class="block" data-sec="tops"><h2>Top of ${esc(label)}</h2>${pv ? `<p class="dim">Arrows show rank change since ${esc(pvLabel)}.</p>` : ""}
       <div class="tops">
         <div><h3>Artists</h3><ol class="rank">${r.top_artists.map((a, i) => `<li${i >= 10 ? " class=extra" : ""}>
             <span class="nm">${artistBtn(a.name)}</span>${change(a, i)}
@@ -1089,7 +1139,7 @@ function renderExplore(r) {
           : `<p class="dim small">Albums come with the extended history export. Re-import it in Setup.</p>`}</div>
       </div></div>
 
-    <div class="block"><h2>${pv ? `What changed since ${esc(pvLabel)}` : "Discoveries"}</h2>
+    <div class="block" data-sec="changes"><h2>${pv ? `What changed since ${esc(pvLabel)}` : "Discoveries"}</h2>
       <div class="tops">
         ${pv ? `<div><h3>Rising</h3><ul class="plain">${r.movers.up.map((m) => `<li>${artistBtn(m.name)}<em class="mono">${fmtH(m.was)} → ${fmtH(m.hours)}</em></li>`).join("") || "<li class=dim>Nobody</li>"}</ul></div>
         <div><h3>Fading</h3><ul class="plain">${r.movers.down.map((m) => `<li>${artistBtn(m.name)}<em class="mono">${fmtH(m.was)} → ${fmtH(m.hours)}</em></li>`).join("") || "<li class=dim>Nobody</li>"}</ul></div>` : ""}
@@ -1098,11 +1148,7 @@ function renderExplore(r) {
           <p class="dim small" style="margin-top:8px">Hours in this period, then hours since. "Stuck" means you kept playing them.</p></div>
       </div></div>
 
-    ${clockHTML(r.clock)}
-    ${albumsHTML(r.albums)}
-    ${travelHTML(r.travel)}
-
-    <div class="block"><h2>How you listen</h2>
+    <div class="block" data-sec="habits"><h2>Streaks, sessions and habits</h2>
       <div class="bento">
         <div class="cell"><span class="kicker">Streaks</span>
           ${st.longest ? `<p class="big"><b>${st.longest.days} days</b> in a row</p><p class="dim small">${shortDay(st.longest.start)} to ${shortDay(st.longest.end)}</p>` : "<p class=dim>No listening</p>"}
@@ -1129,28 +1175,35 @@ function renderExplore(r) {
           <div class="trio"><div><b>${t.effective_artists.toLocaleString()}</b><span>as varied as that many equally played artists</span></div>
             <div><b>${t.top10_share}%</b><span>of your listening went to your top 10</span></div>
             <div><b>${t.fresh_share}%</b><span>was songs you first heard in this period</span></div></div></div>
-        ${r.devices.length ? `<div class="cell"><span class="kicker">Devices</span>${bars(r.devices, fmtH)}</div>` : ""}
-        ${r.phones.length ? `<div class="cell"><span class="kicker">Your phones</span><ul class="plain">${r.phones.map((p) => `<li><span>${esc(p.name)}</span><em class="mono">${p.first.slice(0, 4)} to ${p.last.slice(0, 4)}, ${fmtH(p.hours)}</em></li>`).join("")}</ul></div>` : ""}
-        ${r.countries.length && r.travel.countries.length < 2 ? `<div class="cell"><span class="kicker">Where you listened</span><ul class="plain">${r.countries.map((c) => `<li><span>${esc(countryName(c.code))}</span><em class="mono">${c.days.toLocaleString()} days, ${fmtH(c.hours)}</em></li>`).join("")}</ul></div>` : ""}
-      </div></div>`;
+      </div></div>
+    ${clockHTML(r.clock)}
+    ${albumsHTML(r.albums)}
+    ${travelHTML(r.travel)}
+    ${r.devices.length || r.phones.length ? `<div class="block" data-sec="devices"><h2>What you listened on</h2>
+      <div class="bento">
+        ${r.devices.length ? `<div class="cell wide"><span class="kicker">Devices</span>${bars(r.devices, fmtH)}</div>` : ""}
+        ${r.phones.length ? `<div class="cell wide"><span class="kicker">Your phones</span><ul class="plain">${r.phones.map((p) => `<li><span>${esc(p.name)}</span><em class="mono">${p.first.slice(0, 4)} to ${p.last.slice(0, 4)}, ${fmtH(p.hours)}</em></li>`).join("")}</ul></div>` : ""}
+        ${r.countries.length && r.travel.countries.length < 2 ? `<div class="cell wide"><span class="kicker">Where you listened</span><ul class="plain">${r.countries.map((c) => `<li><span>${esc(countryName(c.code))}</span><em class="mono">${c.days.toLocaleString()} days, ${fmtH(c.hours)}</em></li>`).join("")}</ul></div>` : ""}
+      </div></div>` : ""}
+    <div class="block" data-sec="early" id="ex-early"></div>`;
+  applyView();
   reveal($("explore-body"));
-  if ($("ex-map")) renderMap($("ex-map"), r.travel);
 
   const axes = { x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkipPadding: 12 } }, y: { grid, beginAtZero: true, border: { display: false } } };
   const hTip = { callbacks: { label: (c) => ` ${fmtH(c.parsed.y)}` } };
   chart("ex-wd", { type: "bar", data: { labels: DAYS.map((d) => d.slice(0, 3)), datasets: [{ label: "Average per day", data: wd,
-    backgroundColor: wd.map((_, i) => i === today ? ACCENT : "rgba(191,227,90,.32)"), borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: "bottom", maxBarThickness: 44 }] },
+    backgroundColor: wd.map((_, i) => i === today ? ACCENT : "rgba(92,176,255,.32)"), borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: "bottom", maxBarThickness: 44 }] },
     options: { scales: axes, plugins: { legend: { display: false }, tooltip: hTip } } }, "explore");
   chart("ex-hour", { type: "line", data: { labels: Array.from({ length: 24 }, (_, h) => `${h}:00`), datasets: [{ label: "Minutes per day",
-    data: r.hour_avg_min, borderColor: ACCENT, borderWidth: 2, fill: true, backgroundColor: "rgba(191,227,90,.1)", pointRadius: 0,
+    data: r.hour_avg_min, borderColor: ACCENT, borderWidth: 2, fill: true, backgroundColor: "rgba(92,176,255,.1)", pointRadius: 0,
     pointHoverRadius: 4, pointHoverBackgroundColor: ACCENT, tension: 0.35 }] },
     options: { scales: axes, interaction: { mode: "index", intersect: false },
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${c.parsed.y} min per day` } } } } }, "explore");
   chart("ex-dist", { type: "bar", data: { labels: r.distribution.labels, datasets: [{ label: "Days", data: r.distribution.days,
-    backgroundColor: r.distribution.days.map((_, i) => i ? "rgba(191,227,90,.6)" : "#3A3A34"), borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: "bottom" }] },
+    backgroundColor: r.distribution.days.map((_, i) => i ? "rgba(92,176,255,.6)" : "#3A3A34"), borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: "bottom" }] },
     options: { scales: axes, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${c.parsed.y} days` } } } } }, "explore");
   chart("ex-series", { type: "bar", data: { labels: series.keys.map(unitLabel), datasets: [{ label: "Hours", data: series.hours,
-    backgroundColor: series.hours.map((_, i) => i === peakI ? ACCENT : "rgba(191,227,90,.45)"), hoverBackgroundColor: ACCENT,
+    backgroundColor: series.hours.map((_, i) => i === peakI ? ACCENT : "rgba(92,176,255,.45)"), hoverBackgroundColor: ACCENT,
     borderRadius: { topLeft: 3, topRight: 3 }, borderSkipped: "bottom", maxBarThickness: 28 }] },
     options: { scales: axes, onHover: (e, els) => (e.native.target.style.cursor = els.length ? "pointer" : "default"),
       onClick: (_, els) => {
@@ -1159,6 +1212,102 @@ function renderExplore(r) {
         series.unit === "month" ? loadExplore(`${k}-01`, monthEnd(k)) : series.unit === "week" ? loadExplore(k, addDays(k, 6)) : openDay(k);
       },
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${fmtH(c.parsed.y)}, ${series.new[c.dataIndex]} new artists` } } } } }, "explore");
+}
+
+// ---- Explore view: sub-tabs, plus which sections you want to see. Remembered per browser (localStorage can be
+// blocked or empty, so both fall back to showing everything).
+const EX_TABS = [["overview", "Overview"], ["listen", "How you listen"], ["taste", "Artists & sound"], ["places", "Places & devices"], ["early", "Found early"]];
+const EX_SECS = [["tiles", "overview", "Headline numbers"], ["daily", "overview", "Daily averages"], ["otd", "overview", "On this day"],
+  ["calendar", "overview", "Every-day calendar"], ["series", "overview", "Busiest weeks and months"],
+  ["habits", "listen", "Streaks, sessions and habits"], ["clock", "listen", "Music by the clock"], ["albums", "listen", "Albums vs cherry-picking"],
+  ["tops", "taste", "Top artists, songs and albums"], ["changes", "taste", "What changed"], ["sound", "taste", "Your sound"],
+  ["travel", "places", "Travel map"], ["devices", "places", "Devices and phones"], ["early", "early", "Artists you found early"]];
+const SEC_TAB = Object.fromEntries(EX_SECS.map(([id, t]) => [id, t]));
+const pref = (k, d) => { try { return JSON.parse(localStorage.getItem("sp." + k)) ?? d; } catch { return d; } };
+const setPref = (k, v) => { try { localStorage.setItem("sp." + k, JSON.stringify(v)); } catch {} };
+let exTab = pref("tab", "overview");
+const exHidden = new Set(pref("hidden", []));
+
+$("subtabs").innerHTML = EX_TABS.map(([t, name]) => `<button role="tab" data-sub="${t}">${name}</button>`).join("");
+$("subtabs").onclick = (e) => {
+  const b = e.target.closest("[data-sub]");
+  if (!b) return;
+  exTab = b.dataset.sub;
+  setPref("tab", exTab);
+  applyView();
+};
+function renderCustomize() {
+  $("customize-pop").innerHTML = `<p class="kicker">Sections to show</p>` + EX_TABS.map(([t, name]) => `<fieldset><legend>${name}</legend>
+    ${EX_SECS.filter((s) => s[1] === t).map(([id, , label]) => `<label><input type="checkbox" data-hide="${id}"${exHidden.has(id) ? "" : " checked"}>${label}</label>`).join("")}
+    </fieldset>`).join("") + `<button class="link small" id="customize-all">Show everything</button>`;
+}
+renderCustomize();
+$("customize-pop").onchange = (e) => {
+  const id = e.target.dataset.hide;
+  if (!id) return;
+  e.target.checked ? exHidden.delete(id) : exHidden.add(id);
+  setPref("hidden", [...exHidden]);
+  applyView();
+};
+$("customize-pop").onclick = (e) => {
+  if (e.target.id !== "customize-all") return;
+  exHidden.clear();
+  setPref("hidden", []);
+  renderCustomize();
+  applyView();
+};
+document.addEventListener("click", (e) => { if (!e.target.closest("#customize")) $("customize").open = false; });
+
+// Shows the current tab's sections. A tab appears when this period has something in it you haven't hidden.
+function applyView() {
+  const body = $("explore-body"), secs = [...body.querySelectorAll("[data-sec]")];
+  const live = new Set(secs.filter((el) => !exHidden.has(el.dataset.sec)).map((el) => SEC_TAB[el.dataset.sec]));
+  if (!live.has(exTab)) exTab = EX_TABS.map(([t]) => t).find((t) => live.has(t)) || "overview";
+  $("subtabs").querySelectorAll("[data-sub]").forEach((b) => {
+    b.hidden = !live.has(b.dataset.sub);
+    b.setAttribute("aria-selected", b.dataset.sub === exTab);
+  });
+  secs.forEach((el) => (el.hidden = SEC_TAB[el.dataset.sec] !== exTab || exHidden.has(el.dataset.sec)));
+  if ($("ex-allhidden")) $("ex-allhidden").hidden = live.size > 0;
+  const map = $("ex-map");  // the map pulls in d3 and a world atlas, so only once Places is open
+  if (exTab === "places" && map && !map.dataset.done) { map.dataset.done = 1; renderMap(map, ex.data.travel); }
+  if (exTab === "early") loadEarly();
+}
+
+// "Found early": everyone you played within ~2 years of their first release who's big now. MusicBrainz allows one
+// lookup a second, so a first visit shows what's cached and re-checks while the rest are looked up.
+let earlyTimer;
+async function loadEarly() {
+  const el = $("ex-early");
+  if (!el || el.dataset.done) return;
+  el.dataset.done = 1;
+  clearTimeout(earlyTimer);
+  const isAll = ex.start === dataStart() && ex.end === dataEnd(), label = rangeLabel(ex.start, ex.end);
+  if (!el.innerHTML) el.innerHTML = `<h2>Artists you found early</h2><p class="status" id="early-status" role="status"></p>`;
+  let r;
+  await run("early-status", "Checking when your artists put out their first release…", async () => {
+    r = await api("/api/found-early" + (isAll ? "" : `?start=${ex.start}&end=${ex.end}`));
+    if (r.error) throw new Error(r.error);
+  }, null, null, { tasks: ["early"], idle: "Checking your artists" });
+  if (!r || $("ex-early") !== el) return;  // failed, or the period changed while this was loading
+  const f = r.finds, top = f[0];
+  const when = (d) => d < 45 ? "within weeks of their first release" : `${Math.round(d / 30.4)} months after their first release`;
+  el.innerHTML = `<h2>${f.length ? `You found ${f.length} ${f.length === 1 ? "artist" : "artists"} before they blew up` : "Artists you found early"}</h2>
+    <p class="dim">Artists you first played${isAll ? "" : ` in ${esc(label)}`} within two years of their debut (first release date from MusicBrainz)
+      who now have over a million listeners on Last.fm.${top ? ` Biggest: ${artistBtn(top.name)}, at ${fmt(top.listeners)} today.` : ""}</p>
+    <p class="status" id="early-status" role="status">${esc(r.note || "")}${r.pending ? `Still checking ${r.pending} more ${r.pending === 1 ? "artist" : "artists"} in the background; this list updates itself.` : ""}</p>
+    ${f.length ? `<ol class="early">${f.map((a, i) => `<li>
+        <span class="mono dim">${i + 1}</span>
+        <div class="a-art">${tile(a.name)}${a.image ? `<img src="${esc(a.image)}" alt="" loading="lazy" onerror="this.remove()">` : ""}</div>
+        <div class="who"><b>${artistBtn(a.name)}</b>
+          <span class="sub">First played ${esc(month(a.first.slice(0, 7)))}, ${when(a.gap_days)}. ${fmtH(a.hours)} since.</span></div>
+        <em class="mono"><b>${fmt(a.listeners)}</b> listeners now</em></li>`).join("")}</ol>`
+      : !r.pending && !r.note ? `<div class="empty">Nobody yet. It takes an artist you played in their first two years who has since passed a million listeners.</div>` : ""}`;
+  if (r.pending) earlyTimer = setTimeout(() => {
+    if ($("ex-early") !== el) return;
+    el.dataset.done = "";  // re-checks now, or when you come back to this tab
+    if (exTab === "early") loadEarly();
+  }, 20000);
 }
 
 // "idm is up 6 points since 2024" when something moved, else what the period sounded like
@@ -1227,7 +1376,7 @@ async function openArtist(name) {
           <em class="mono">${x.plays} plays${x.skip_rate >= 30 ? `, ${x.skip_rate}% skipped` : ""}</em></li>`).join("") || "<li class=dim>No plays in this period</li>"}</ol></div>
         <div><h3>When you play them</h3>
           <div class="heat heat-mini">${r.heat.map((row, d) => `<span class="lab">${DAYS[d].slice(0, 3)}</span>` + row.map((h, hr) =>
-            `<div title="${DAYS[d]} ${hr}:00, ${fmtH(h)}" style="background: rgba(191,227,90,${(0.04 + 0.96 * h / peak).toFixed(2)})"></div>`).join("")).join("")}
+            `<div title="${DAYS[d]} ${hr}:00, ${fmtH(h)}" style="background: rgba(92,176,255,${(0.04 + 0.96 * h / peak).toFixed(2)})"></div>`).join("")).join("")}
             <span></span>${Array.from({ length: 24 }, (_, i) => `<span class="lab">${i % 6 ? "" : i}</span>`).join("")}</div>
           ${r.albums.length ? `<h3 style="margin-top:22px">Albums</h3><ul class="plain">${r.albums.map(([al, h]) => `<li><span>${esc(al)}</span><em class="mono">${fmtH(h)}</em></li>`).join("")}</ul>` : ""}</div>
       </div>
@@ -1240,7 +1389,7 @@ async function openArtist(name) {
     const inRange = (m) => m >= r.start.slice(0, 7) && m <= r.end.slice(0, 7);
     const axes = { x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkipPadding: 14 } }, y: { grid, beginAtZero: true, border: { display: false } } };
     chart("a-months", { type: "bar", data: { labels: r.months.map(month), datasets: [{ label: "Hours", data: r.hours_by_month,
-      backgroundColor: r.months.map((m) => isAll || inRange(m) ? ACCENT : "rgba(191,227,90,.3)"), borderRadius: { topLeft: 2, topRight: 2 }, borderSkipped: "bottom" }] },
+      backgroundColor: r.months.map((m) => isAll || inRange(m) ? ACCENT : "rgba(92,176,255,.3)"), borderRadius: { topLeft: 2, topRight: 2 }, borderSkipped: "bottom" }] },
       options: { scales: axes, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${fmtH(c.parsed.y)}` } } } } }, "artist");
     chart("a-share", { type: "line", data: { labels: r.months.map(month), datasets: [{ label: "Share", data: r.share_by_month,
       borderColor: ACCENT, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: ACCENT, tension: 0.3 }] },
@@ -1268,7 +1417,7 @@ async function openDay(s) {
 function clockHTML(ck) {
   if (!ck || !ck.parts.some((p) => p.artists.length)) return "";
   const night = ck.parts[0], star = night.artists[0];
-  return `<div class="block"><h2>${star ? `Your 3am music: ${artistBtn(star.name)}` : "Music by the clock"}</h2>
+  return `<div class="block" data-sec="clock"><h2>${star ? `Your 3am music: ${artistBtn(star.name)}` : "Music by the clock"}</h2>
     <p class="dim">What you play at each time of day far more than usual. "6×" means that part of the day gets six times their normal share
       of your listening; the percent is how many of all their plays land there.${ck.latest ? ` Latest you've been up listening: ${ck.latest.time} on
       ${dayBtn(ck.latest.day)}${ck.latest.track ? `, to ${songBtn(ck.latest.track, ck.latest.artist, "")}` : ""}.` : ""}</p>
@@ -1284,7 +1433,7 @@ function albumsHTML(al) {
   if (!al || !(al.front_to_back.length || al.cherry_picked.length)) return "";
   const title = al.album_share >= 20 ? `An album listener: ${al.album_share}% of your music was whole albums`
     : `A cherry-picker: ${al.album_share}% of your music was whole albums`;
-  return `<div class="block"><h2>${title}</h2>
+  return `<div class="block" data-sec="albums"><h2>${title}</h2>
     <p class="dim">A full listen is most of an album's tracklist back to back${al.tracklists ? " (tracklists from Last.fm)" : " (5 songs in a row; add a Last.fm key for real tracklists)"}.
       Cherry-picked albums are ones you keep coming back to for a few songs.</p>
     <div class="tops two">
@@ -1302,7 +1451,7 @@ function travelHTML(tv) {
   const away = tv.countries.length - 1;
   const title = tv.trips.length ? `${tv.trips.length} ${tv.trips.length === 1 ? "trip" : "trips"} abroad, ${away} ${away === 1 ? "country" : "countries"} besides ${esc(countryName(tv.home))}`
     : `${tv.countries.length} countries`;
-  return `<div class="block"><h2>${title}</h2>
+  return `<div class="block" data-sec="travel"><h2>${title}</h2>
     <p class="dim">From the country each play came from (a VPN can fool it). Hover the map for days and hours; click a trip's dates to explore just that trip.</p>
     <div class="map-box" id="ex-map"><p class="dim small">Loading the map…</p></div>
     <div class="split">
@@ -1322,7 +1471,7 @@ const closeOtherDrawers = (keep) => document.querySelectorAll("dialog.drawer[ope
 // Plays-per-cell heatmap by weekday and hour, shared by the artist and song pages
 const miniHeat = (heat, unit) => { const peak = Math.max(...heat.flat()) || 1;
   return `<div class="heat heat-mini">${heat.map((row, d) => `<span class="lab">${DAYS[d].slice(0, 3)}</span>` + row.map((v, hr) =>
-    `<div title="${DAYS[d]} ${hr}:00, ${unit(v)}" style="background: rgba(191,227,90,${(0.04 + 0.96 * v / peak).toFixed(2)})"></div>`).join("")).join("")}
+    `<div title="${DAYS[d]} ${hr}:00, ${unit(v)}" style="background: rgba(92,176,255,${(0.04 + 0.96 * v / peak).toFixed(2)})"></div>`).join("")).join("")}
     <span></span>${Array.from({ length: 24 }, (_, i) => `<span class="lab">${i % 6 ? "" : i}</span>`).join("")}</div>`; };
 
 async function openSong(artistName, track) {
@@ -1368,7 +1517,7 @@ async function openSong(artistName, track) {
       </div>` : ""}`;
     const inRange = (m) => m >= r.start.slice(0, 7) && m <= r.end.slice(0, 7);
     chart("s-months", { type: "bar", data: { labels: r.months.map(month), datasets: [{ label: "Plays", data: r.plays_by_month,
-      backgroundColor: r.months.map((m) => isAll || inRange(m) ? ACCENT : "rgba(191,227,90,.3)"), borderRadius: { topLeft: 2, topRight: 2 }, borderSkipped: "bottom" }] },
+      backgroundColor: r.months.map((m) => isAll || inRange(m) ? ACCENT : "rgba(92,176,255,.3)"), borderRadius: { topLeft: 2, topRight: 2 }, borderSkipped: "bottom" }] },
       options: { scales: { x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkipPadding: 14 } }, y: { grid, beginAtZero: true, border: { display: false }, ticks: { precision: 0 } } },
         plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${c.parsed.y} plays` } } } } }, "song");
   });
@@ -1481,7 +1630,7 @@ async function renderMap(el, tv) {
     const maxDays = Math.max(1, ...away.map((c) => c.days));
     el.innerHTML = `<svg class="map" viewBox="0 0 ${W} ${H}" role="img" aria-label="Map of the countries you've listened in">${land.map((f) => {
       const c = byId[f.id], home = c && c.code === tv.home;
-      const fill = !c ? "var(--surface-2)" : home ? "rgba(191,227,90,.22)" : `rgba(191,227,90,${(0.45 + 0.55 * Math.log1p(c.days) / Math.log1p(maxDays)).toFixed(2)})`;
+      const fill = !c ? "var(--surface-2)" : home ? "rgba(92,176,255,.22)" : `rgba(92,176,255,${(0.45 + 0.55 * Math.log1p(c.days) / Math.log1p(maxDays)).toFixed(2)})`;
       return `<path d="${path(f)}" fill="${fill}"${c ? ` class="hit"` : ""}>${c ? `<title>${esc(countryName(c.code))}${home ? " (home)" : ""}: ${c.days} days, ${fmtH(c.hours)}</title>` : ""}</path>`;
     }).join("")}</svg>`;
   } catch (e) {
@@ -1505,7 +1654,7 @@ document.addEventListener("click", (e) => {
 
 // ---- recap card: drawn on a canvas so it exports as a PNG that looks the same everywhere it's posted
 const recap = { data: null, shape: "story", photos: {}, on: new Set() };
-const INK = { bg: "#0E0E0C", surface: "#171715", line: "#2A2A26", fg: "#ECE9E2", dim: "#A09B90", accent: "#BFE35A" };
+const INK = { bg: "#0E0E0C", surface: "#171715", line: "#2A2A26", fg: "#ECE9E2", dim: "#A09B90", accent: "#5CB0FF" };
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const CARD_SLOTS = { story: 4, square: 4 };  // the headline plus the supporting insights that fit each shape
 
@@ -1527,17 +1676,23 @@ async function loadRecap(year) {
     ["recap-download", "recap-share", "recap-copy"].forEach((id) => ($(id).disabled = false));
   }, null, null, { tasks: ["recap", "explore", "trends"], idle: "Working it out" });
 }
+const SHOW_INSIGHTS = 6;  // the rest sit behind "Show all", so the list stays about as tall as the card
+$("recap-more").onclick = () => { recap.showAll = !recap.showAll; renderInsightList(); };
 const chosenInsights = () => recap.data.insights.filter((i) => recap.on.has(i.id));
 function renderInsightList() {
   const slots = CARD_SLOTS[recap.shape], chosen = chosenInsights();
   $("recap-slots").textContent = slots;
-  $("recap-insights").innerHTML = recap.data.insights.map((i) => {
+  $("recap-insights").innerHTML = recap.data.insights.map((i, k) => {
     const on = recap.on.has(i.id), pos = chosen.indexOf(i);
     const tag = pos === 0 ? `<span class="chg new">headline</span>` : pos >= slots ? `<span class="chg">won't fit</span>` : "";
-    return `<li class="${on ? "on" : ""}${pos >= slots ? " off-card" : ""}"><label>
+    const extra = k >= SHOW_INSIGHTS && !on && !recap.showAll;  // ticked ones always show
+    return `<li class="${on ? "on" : ""}${pos >= slots ? " off-card" : ""}${extra ? " extra" : ""}"><label>
       <input type="checkbox" data-insight="${esc(i.id)}"${on ? " checked" : ""}>
-      <span><span class="kicker">${esc(i.kicker)}${tag}</span><b>${esc(i.value)}</b><span class="dim small">${esc(i.text)}</span></span></label></li>`;
+      <span><span class="kicker">${esc(i.kicker)}${tag}</span><b>${esc(i.value)}</b><span class="dim small" title="${esc(i.text)}">${esc(i.text)}</span></span></label></li>`;
   }).join("") || `<li class="dim small" style="padding:12px 14px">Not enough listening in this period to say much yet.</li>`;
+  const n = recap.data.insights.length;
+  $("recap-more").hidden = n <= SHOW_INSIGHTS;
+  $("recap-more").textContent = recap.showAll ? "Show fewer" : `Show all ${n}`;
 }
 $("recap-insights").onchange = (e) => {
   const id = e.target.dataset.insight;
@@ -1654,7 +1809,7 @@ async function drawRecap() {
     const base = y + 40 + chartH;
     pf.months.forEach((mo, i) => {
       const bh = Math.max(2, pf.hours_by_month[i] / top * chartH), inYear = allTime || mo.startsWith(r.year);
-      ctx.fillStyle = inYear ? INK.accent : "rgba(191,227,90,.26)";
+      ctx.fillStyle = inYear ? INK.accent : "rgba(92,176,255,.26)";
       ctx.beginPath(); ctx.roundRect(x + i * (bw + gap), base - bh, bw, bh, Math.min(3, bw / 2)); ctx.fill();
     });
     ctx.fillStyle = INK.line; ctx.fillRect(x, base + 2, w, 2);
@@ -1670,7 +1825,7 @@ async function drawRecap() {
     (r.eras || []).forEach((e, k) => {
       const a = idx(e.start, false), b = idx(e.end, true), sx = x + a * (bw + gap), sw = Math.max(4, (b - a + 1) * (bw + gap) - gap);
       const cur = k === r.eras.length - 1;
-      ctx.fillStyle = cur ? "rgba(191,227,90,.22)" : k % 2 ? INK.line : "#33332E";
+      ctx.fillStyle = cur ? "rgba(92,176,255,.22)" : k % 2 ? INK.line : "#33332E";
       ctx.beginPath(); ctx.roundRect(sx, bandY, sw - 3, bandH, 10); ctx.fill();
       if (sw > 130) text(e.tags[0], sx + 14, bandY + bandH / 2 + 7, { size: opt.tag || 20, weight: 600, color: cur ? INK.accent : INK.fg, maxWidth: sw - 34, minSize: 14 });
     });
@@ -1681,9 +1836,13 @@ async function drawRecap() {
   ctx.beginPath(); ctx.arc(M + 14, M + 22, 5, 0, 7); ctx.fillStyle = INK.bg; ctx.fill();
   text("Spotiscovery", M + 42, M + 34, { size: 32, track: -.01 });
   text(period, W - M, M + 32, { size: 24, weight: 500, mono: true, color: INK.dim, align: "right" });
-  const factCell = (f, x, y, cw, vs, ls) => {
-    text(f[0], x, y, { size: vs, weight: 800, maxWidth: cw - 26, minSize: vs * .6, track: -.03 });  // leave a gutter to the next number
-    text(f[1], x, y + ls * 1.35, { size: ls, weight: 500, color: INK.dim, maxWidth: cw - 12 });
+  // One fact: big number over its label. Columns after the first get a hairline and a gutter on both sides,
+  // so wide numbers ("148,408") never run into the next one.
+  const factCell = (f, x, y, cw, vs, ls, col, gut) => {
+    const pad = col ? gut : 0, lblY = y + ls * 1.8;
+    if (col) { ctx.fillStyle = INK.line; ctx.fillRect(x, y - vs * .76, 2, lblY - y + vs * .76 + ls * .35); }
+    text(f[0], x + pad, y, { size: vs, weight: 800, maxWidth: cw - pad - gut, minSize: vs * .6, track: -.03 });
+    text(f[1], x + pad, lblY, { size: ls, weight: 500, color: INK.dim, maxWidth: cw - pad - gut });
   };
 
   if (story) {
@@ -1691,9 +1850,9 @@ async function drawRecap() {
     text("What my listening says about me", M, 358, { size: 34, maxWidth: W - 2 * M, minSize: 24, track: -.015 });
     // About you: six all-time facts in two rows
     const cw = (W - 2 * M) / 3;
-    facts.forEach((f, i) => factCell(f, M + (i % 3) * cw, 470 + Math.floor(i / 3) * 132, cw, 70, 24));
+    facts.forEach((f, i) => factCell(f, M + (i % 3) * cw, 490 + Math.floor(i / 3) * 128, cw, 62, 24, i % 3, 28));
     ctx.fillStyle = INK.line; ctx.fillRect(M, 412, W - 2 * M, 2);
-    historyChart(M, 682, W - 2 * M, 290);
+    historyChart(M, 700, W - 2 * M, 280);
     if (!hero) return text("Tick an insight to put it on the card.", M, 1140, { size: 30, weight: 500, color: INK.dim });
     // The headline gets its own panel: photo top right, big value, then the sentence
     const top = 1012, pad = 40, inner = W - 2 * M - 2 * pad, ps = hero.artist ? 168 : 0;
@@ -1719,11 +1878,11 @@ async function drawRecap() {
     text("Made with Spotiscovery from my own listening history", M, H - 40, { size: 20, weight: 500, mono: true, color: INK.dim });
   } else {
     // Square: title and the six facts side by side, the history chart under them, then the insights
-    text(title, M - 6, 240, { size: 126, weight: 800, color: INK.accent, maxWidth: 372, minSize: 76, track: -.05 });
-    text("What my listening says about me", M, 282, { size: 22, maxWidth: 380, minSize: 16, track: -.01 });
-    const gx = M + 420, cw = (W - M - gx) / 3;
-    facts.forEach((f, i) => factCell(f, gx + (i % 3) * cw, 176 + Math.floor(i / 3) * 106, cw, 46, 19));
-    historyChart(M, 322, W - 2 * M, 262, { bandH: 34, cap: 18, tick: 15, tag: 17 });
+    text(title, M - 6, 240, { size: 126, weight: 800, color: INK.accent, maxWidth: 340, minSize: 76, track: -.05 });
+    text("What my listening says about me", M, 282, { size: 22, maxWidth: 340, minSize: 16, track: -.01 });
+    const gx = M + 372, cw = (W - M - gx) / 3;
+    facts.forEach((f, i) => factCell(f, gx + (i % 3) * cw, 184 + Math.floor(i / 3) * 98, cw, 42, 18, i % 3, 20));
+    historyChart(M, 334, W - 2 * M, 254, { bandH: 34, cap: 18, tick: 15, tag: 17 });
     if (!hero) return text("Tick an insight to put it on the card.", M, 640, { size: 26, weight: 500, color: INK.dim });
     const top = 612, pad = 30, inner = W - 2 * M - 2 * pad, ps = hero.artist ? 128 : 0;
     const vOpt = { size: 46, weight: 800, color: INK.fg, maxWidth: inner - ps - 20, lineH: 1.05, maxLines: 2, track: -.03 };
@@ -1808,7 +1967,7 @@ window.onpopstate = () => {
 
 // ---- charts (categorical palette validated with the dataviz skill: CVD dE >= 8.4, all >= 3:1 on dark surfaces)
 const SERIES = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"];
-const ACCENT = "#BFE35A";
+const ACCENT = "#5CB0FF";
 // Parts of the day run in order, so they get one hue, dark to light (validated as an ordinal ramp on the card surface)
 const DAY_RAMP = ["#184f95", "#256abf", "#5598e7", "#86b6ef"];
 Chart.defaults.color = "#A09B90";
@@ -1931,7 +2090,7 @@ async function loadTrends() {
           <button class="link small" data-artist="${esc(a.name)}">Your history with them</button>`)).join("")}</div></div>` : ""}
       <div class="block"><h2>You listen most on ${days[hd]}s around ${hh}:00</h2><p class="dim">Hours by weekday and hour, your local time.</p>
         <div class="heat">${t.heatmap.map((row, d) => `<span class="lab">${days[d].slice(0, 3)}</span>` + row.map((h, hr) =>
-          `<div title="${days[d]} ${hr}:00, ${h} h" class="${d === hd && hr === hh ? "peak" : ""}" style="background: rgba(191,227,90,${(0.04 + 0.96 * h / max).toFixed(2)})"></div>`).join("")).join("")}
+          `<div title="${days[d]} ${hr}:00, ${h} h" class="${d === hd && hr === hh ? "peak" : ""}" style="background: rgba(92,176,255,${(0.04 + 0.96 * h / max).toFixed(2)})"></div>`).join("")).join("")}
           <span></span>${Array.from({ length: 24 }, (_, i) => `<span class="lab">${i % 6 ? "" : i}</span>`).join("")}
         </div>
         <div class="heat-key"><span>Less</span><i></i><span>More</span><span class="mono">up to ${max} h</span></div></div>
@@ -1944,7 +2103,7 @@ async function loadTrends() {
     // Emphasis: the peak month in the accent, the rest muted, so the title's claim is visible at a glance
     chart("c-hours", { data: { labels: t.months.map(month), datasets: [
       { type: "line", label: "3-month average", data: avg3, borderColor: "#ECE9E2", borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.35, order: 0 },
-      { type: "bar", label: "Hours", data: t.hours, order: 1, backgroundColor: t.hours.map((_, i) => i === peakI ? ACCENT : "rgba(191,227,90,.38)"),
+      { type: "bar", label: "Hours", data: t.hours, order: 1, backgroundColor: t.hours.map((_, i) => i === peakI ? ACCENT : "rgba(92,176,255,.38)"),
         hoverBackgroundColor: ACCENT, borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: "bottom", maxBarThickness: 28 }] },
       options: { scales: axes, interaction: { mode: "index", intersect: false }, plugins: { legend },
         onHover: (e, els) => (e.native.target.style.cursor = els.length ? "pointer" : "default"),
@@ -1960,7 +2119,7 @@ async function loadTrends() {
         plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${fmt(c.parsed.y)} listeners` } } } } });
     const top = Math.max(...drift.flatMap((d) => d.share));  // one scale for every panel, so they compare honestly
     drift.forEach((d, i) => chart(`c-tag-${i}`, { type: "line", data: { labels: t.drift.quarters.map(quarter), datasets: [{ label: d.tag,
-      data: d.share, borderColor: ACCENT, borderWidth: 2, fill: true, backgroundColor: "rgba(191,227,90,.12)", pointRadius: 0,
+      data: d.share, borderColor: ACCENT, borderWidth: 2, fill: true, backgroundColor: "rgba(92,176,255,.12)", pointRadius: 0,
       pointHoverRadius: 4, pointHoverBackgroundColor: ACCENT, tension: 0.35 }] },
       options: { scales: { x: { display: false }, y: { display: false, min: 0, max: top } }, interaction: { mode: "index", intersect: false },
         plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${c.parsed.y}% of your listening` } } } } }));
