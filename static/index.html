@@ -216,6 +216,34 @@
   .era-panel .era-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 4px; }
   .era-panel .era-head b { font-size: 20px; font-weight: 600; letter-spacing: -.02em; }
   .era-panel .tiles { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+  .era-panel .sowhat { font-size: 17px; line-height: 1.45; letter-spacing: -.01em; margin-top: 6px; max-width: 62ch; }
+  .era-panel .sowhat b { color: var(--accent); font-weight: 600; }
+  /* Two bars a row: this era against your all-time share. One hue plus grey, and every row is labelled,
+     so it reads the same with any colour vision. */
+  /* Two columns of rows, so six tags do not turn into a wall. .lbl, not .tag: .tag is the chip style. */
+  ul.lift { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 32px; }
+  ul.lift li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; align-items: baseline; font-size: 13.5px; min-width: 0; }
+  ul.lift .lbl { font-weight: 600; min-width: 0; overflow-wrap: break-word; }
+  /* Up gets the accent, down stays neutral, same as .delta and .chg elsewhere. The arrow carries it either way. */
+  ul.lift .pts { font: 12px var(--mono); color: var(--fg-dim); white-space: nowrap; }
+  ul.lift .pts.up { color: var(--accent); }
+  ul.lift .track { grid-column: 1 / -1; display: grid; gap: 3px; }
+  ul.lift .track > span { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+  ul.lift i { height: 7px; border-radius: 2px; display: block; transform-origin: left; }
+  ul.lift .now i { background: var(--accent); }
+  ul.lift li:has(.pts:not(.up)) .now i { background: var(--fg-faint); }
+  ul.lift .usual i { background: var(--raise); }
+  ul.lift em { font: 11px var(--mono); font-style: normal; color: var(--fg-dim); white-space: nowrap; }
+  /* Entering: the bars grow left to right so the eye reads the comparison in order. Opening an era is a rare
+     action, so it can afford this; it is transform only, and it is off under reduced motion. */
+  .era-panel ul.lift i { animation: growx .4s var(--ease) both; }
+  ul.lift li:nth-child(1) i { animation-delay: 40ms; }
+  ul.lift li:nth-child(2) i { animation-delay: 90ms; }
+  ul.lift li:nth-child(3) i { animation-delay: 140ms; }
+  ul.lift li:nth-child(4) i { animation-delay: 190ms; }
+  ul.lift li:nth-child(5) i { animation-delay: 240ms; }
+  ul.lift li:nth-child(6) i { animation-delay: 290ms; }
+  @keyframes growx { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
   /* ---- small multiples for taste drift */
   .multiples { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px 24px; margin-top: 18px; }
@@ -563,6 +591,7 @@
     .tab { animation: none; }
     .reveal { transition: none; opacity: 1; transform: none; }
     .era-panel, .era .chev, .switch .track, .switch .track::after, .demo-bar { transition: none; }
+    .era-panel ul.lift i { animation: none; }
     .sk .art, .sk i, .sk-h { animation: none; }
     .bar.indet i { animation: none; width: 100%; opacity: .35; }
     dialog.drawer[open] { animation: none; }
@@ -609,6 +638,7 @@
     .pickers .custom { width: 100%; }
     .bento { grid-template-columns: 1fr; }
     .hero-list { grid-template-columns: 1fr; }
+    ul.lift { grid-template-columns: 1fr; }
     .cell.wide { grid-column: auto; }
     .ex-head h2 { font-size: 28px; }
     dialog.drawer > div, dialog.drawer > p.status { padding-left: 18px; padding-right: 18px; }
@@ -1857,24 +1887,46 @@ async function openEraPanel(btn) {
   reveal(panel.firstElementChild);
 }
 
+// All-time hours per day, so an era's pace has something to be measured against
+function usualPerDay() {
+  const t = lastTrends;
+  if (!t || !t.total_hours || !state.first || !state.last) return null;
+  const days = Math.max(1, Math.round((new Date(state.last) - new Date(state.first)) / 864e5));
+  return t.total_hours / days;
+}
+
 function eraPanelHTML(e, label, r, key) {
   const s = r.summary, hi = r.top_artists.length ? r.top_artists[0].hours : 1;
   const rank = (rows, fmtV) => `<ol class="rank">${rows.map((x) => `<li><span class="nm">${x.nm}</span><em class="mono">${fmtV(x)}</em></li>`).join("")}</ol>`;
   const tile = (k, v, extra = "") => `<div class="tile"><span>${k}</span><b>${v}</b>${extra}</div>`;
+  // The point of an era is what stood out, so say that first instead of opening on a row of totals
+  const top = (e.lift || [])[0];
+  const usual = usualPerDay();
+  const pace = usual ? `${(s.per_day / usual).toFixed(1)}× your usual pace` : `${fmtH(s.per_day)} a day`;
+  // Only call it the reason for the era when the gap is actually big; otherwise just state it and stay honest
+  const sowhat = top && top[1] > top[2]
+    ? `<p class="sowhat">${esc(top[0][0].toUpperCase() + top[0].slice(1))} was <b>${top[1]}%</b> of what you played here, against ${top[2]}% across everything else.${
+        top[1] - top[2] >= 3 ? " That gap is what makes this an era." : ""}</p>`
+    : "";
+  const scale = Math.max(...(e.lift || [[0, 1, 1]]).flatMap((g) => [g[1], g[2]]), 1);
+  const bar = (v, cls) => `<span class="${cls}"><i style="width:${(100 * v / scale).toFixed(1)}%"></i><em>${v}%</em></span>`;
   return `<div>
     <div class="era-head"><b>${esc(e.tags.join(" × "))}</b><span class="dim mono small">${esc(label)}</span></div>
-    <p class="dim small">${s.days.toLocaleString()} days, ${s.listening_days.toLocaleString()} with music.</p>
+    ${sowhat}
     <div class="tiles">
-      ${tile("Music", fmtH(s.hours), `<span class="delta">${fmtH(s.per_day)} a day</span>`)}
+      ${tile("Music", fmtH(s.hours), `<span class="delta">${esc(pace)}</span>`)}
       ${tile("Artists", s.artists.toLocaleString(), `<span class="delta">${s.new_artists.toLocaleString()} new to you</span>`)}
       ${tile("Songs", s.tracks.toLocaleString())}
-      ${tile("Plays", s.plays.toLocaleString())}
+      ${tile("Days", `${s.listening_days.toLocaleString()}<small> of ${s.days.toLocaleString()}</small>`)}
     </div>
-    <div class="tops" style="margin-top:22px">
+    ${(e.lift || []).length ? `<div style="margin-top:24px"><h3>What stood out, against your usual mix</h3>
+      <ul class="lift">${e.lift.map(([tag, now, was]) => `<li>
+        <span class="lbl">${esc(tag)}</span><span class="pts ${now > was ? "up" : ""}">${now - was > 0 ? "▲ +" : "▼ "}${(now - was).toFixed(1)} pts</span>
+        <span class="track">${bar(now, "now")}${bar(was, "usual")}</span></li>`).join("")}</ul>
+      <p class="dim small" style="margin-top:10px">Top bar is this era, bottom bar is your all-time share of the same tag.</p></div>` : ""}
+    <div class="tops two" style="margin-top:24px">
       <div><h3>Who defined it</h3>${rank(r.top_artists.slice(0, 6).map((a) => ({ nm: artistBtn(a.name) + (a.new ? ` <span class="chg new">new</span>` : ""), hours: a.hours })), (x) => fmtH(x.hours))}</div>
       <div><h3>On repeat</h3>${rank(r.top_tracks.slice(0, 6).map((x) => ({ nm: `${songBtn(x.track, x.artist)} ${artistBtn(x.artist)}`, plays: x.plays })), (x) => `${x.plays} plays`)}</div>
-      ${r.sound && r.sound.length ? `<div><h3>What it sounded like</h3><ul class="bars">${r.sound.slice(0, 6).map((x) =>
-        `<li><span>${esc(x.tag)}</span><i style="--w:${(100 * x.share / r.sound[0].share).toFixed(1)}%"></i><em class="mono">${x.share}%</em></li>`).join("")}</ul></div>` : ""}
     </div>
     ${r.discoveries && r.discoveries.length ? `<div style="margin-top:22px"><h3>Found in this era</h3>
       <p>${r.discoveries.slice(0, 10).map((d) => artistBtn(d.name)).join(", ")}</p></div>` : ""}

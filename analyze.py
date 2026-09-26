@@ -270,6 +270,15 @@ def eras(q_tags, by_quarter, min_share=0.05, min_len=2):
         lifted = sorted(tc, key=lambda t: overall[t] / total - tc[t] / et)
         # Same idea for artists: who defined this era, not who you always play
         defining = sorted(ac, key=lambda a: all_artists[a] / all_hours - ac[a] / eh)
-        out.append({"start": qs[0], "end": qs[-1], "tags": [tag] + [t for t in lifted if t != tag][:1],
-                    "artists": defining[:3], "hours": round(eh)})
+        # The lift is what makes an era an era, so hand it to the page instead of only the tag names:
+        # [tag, share of this era, share of all time], biggest gap first, as percentages.
+        named = [tag] + [t for t in lifted if t != tag][:1]
+        gap = [[t, round(100 * tc[t] / et, 1), round(100 * overall[t] / total, 1)] for t in tc
+               if tc[t] / et >= 0.03 or overall[t] / total >= 0.03]
+        # The era is named from per-quarter lift, which can disagree with the lift across the whole era, so put
+        # the tags it is named for first. Otherwise the page leads with a tag the era is not even called after.
+        gap.sort(key=lambda g: (g[0] not in named, -(g[1] - g[2])))
+        out.append({"start": qs[0], "end": qs[-1], "tags": named,
+                    "artists": defining[:3], "hours": round(eh), "lift": gap[:6],
+                    "quarters": len(qs)})
     return out

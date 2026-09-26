@@ -31,6 +31,10 @@ Round 7 (2026-09-26, /qa on activation energy): demo mode (demo.py, seeded, offl
 welcome screen leading with it, setup as numbered steps with real time costs. Fixed a signed-shift bug that
 made half the initials tiles undefined (killed the recap card whenever artists had no photo).
 
+Round 8 (2026-09-26): era drill-down reworked around the lift that defines an era. analyze.eras() now returns
+`lift` ([tag, era share, all-time share], named tags first) instead of discarding it; the panel leads with the
+comparison in a sentence, shows paired bars era-vs-usual, and drops the sound list that duplicated it.
+
 ## Next
 - Recommendations: the final top 40 barely moves in the backtest (0-1 hits a year either way); try a taste-fit
   re-rank or Claude re-rank of real candidates, judged by backtest.py. Tried a tag-profile fit: no gain.

@@ -16,7 +16,7 @@ The demo lives in its own database file and is thrown away when you switch back.
 touch your accounts or your keys is refused.
 
 - **Trends:** leads with what matters (your current era, how mainstream you are, your peak month), then:
-  - **Your eras:** your history split into stretches named for what was distinctive then, like *synthwave × chillwave, 2018 to 2021*. Click one and it opens in place: what you played then, who defined it, what it sounded like, and the artists you found.
+  - **Your eras:** your history split into stretches named for what was distinctive then, like *synthwave × chillwave, 2018 to 2021*. Click one and it opens in place, leading with what actually made it an era: the genres that ran furthest above your all-time mix, each shown against your usual share, plus who defined it, what was on repeat, and the artists you found.
   - **Mainstream meter:** the Last.fm listener count of your typical artist over time. Watch yourself go underground.
   - **Lost loves:** artists you once played for hours and quietly dropped.
   - Hours and new artists per month, taste drift per tag, when you listen, and top artists by year.
