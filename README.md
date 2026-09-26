@@ -109,7 +109,7 @@ python app.py
 
 Open **http://127.0.0.1:8888**, save your keys, click **Connect Spotify**, and upload your history files if you have them.
 
-The first time you open Trends or Similar sound it takes a minute or two, because Last.fm allows about 5 requests per second. A progress bar shows how far along it is. Responses are cached for 30 days, so after that it's instant.
+The first time you open Trends it takes a minute or two, and Similar sound takes two to four, because Last.fm allows about 5 requests per second and Spotiscovery reads your top 300 artists plus everyone they point to. A progress bar counts it down. Responses are cached for 30 days, so every run after that is seconds. Pushing the slider toward *Deep cuts* looks further down the list, so it takes longer on a cold cache.
 
 If you connected Spotify before playlist export existed, click **Reconnect to save playlists** in Setup once.
 

@@ -80,12 +80,17 @@ def candidates(seeds, known, lf, n_seeds=300):
     return dict(sorted(score.items(), key=lambda kv: -kv[1])), because
 
 
-def similar_recs(seeds, known, lf, obscurity=0.5, n_seeds=300, pool=300, k=40):
+def similar_recs(seeds, known, lf, obscurity=0.5, n_seeds=300, pool=None, k=40):
     """Artists similar to what you play that you've never played.
     obscurity 0..1 penalizes big Last.fm listener counts; that's what surfaces the overlooked.
     300 seeds, not just your top 50: new finds tend to hang off your long tail (the small artists of a scene
-    you're getting into), and a candidate several of them point to gets a bonus (consensus)."""
+    you're getting into), and a candidate several of them point to gets a bonus (consensus).
+
+    How deep to look depends on the slider. Every candidate costs a Last.fm lookup, and the obscurity penalty is
+    what pulls a low-ranked candidate up into the results, so a mainstream setting never needs a deep pool.
+    Measured on real history: the final 40 came from raw ranks 0-41 at obscurity 0, 0-157 at 0.5 and 0-277 at 1."""
     score, because = candidates(seeds, known, lf, n_seeds)
+    pool = pool or round(60 + 240 * obscurity)
     out = []
     for cand in track("similar", list(score)[:pool], "Checking how well-known each one is"):
         inf = lf.info(cand)

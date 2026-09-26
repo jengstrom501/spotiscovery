@@ -629,6 +629,39 @@ def feature_demo_mode():
     assert demo.ready() and demo.build() > 5000  # rebuilding is safe to redo
 
 
+def issue_bad_dates_are_refused():
+    # Regression: a malformed date in the URL silently fell back to the edge of your history, so a typo in a
+    # shared or hand-edited link quietly answered for all time instead of saying the date was wrong.
+    ex = deep_cuts.explore
+    assert ex.bad_dates("not-a-date") and ex.bad_dates("2025-01-01", "whoops")
+    assert not ex.bad_dates("", None, "2025-01-01")  # unspecified is fine: it means "use the data's own edges"
+    assert client.get("/api/explore", query_string={"start": "nope", "end": "2025-01-01"}).get_json()["error"]
+    assert client.get("/api/compare", query_string={"a_start": "nope", "a_end": "2025-01-01",
+                                                    "b_start": "2024-01-01", "b_end": "2024-06-01"}).get_json()["error"]
+
+
+def feature_similar_pool_scales_with_obscurity():
+    # Feature: every candidate costs a Last.fm lookup, and only the obscurity penalty lifts a low-ranked
+    # candidate into the results. A mainstream setting therefore never needs a deep pool, and looking 300 deep
+    # for it made a cold first run take minutes. Measured on real history: the final 40 came from raw ranks
+    # 0-41 at obscurity 0 and 0-277 at 1, so the pool tracks the slider.
+    r, seen = deep_cuts.recommend, []
+
+    class LF:
+        def similar(self, a): return [(f"Cand {i}", 1.0 - i / 400) for i in range(400)]
+        def info(self, a):
+            seen.append(a)
+            return {"name": a, "listeners": 5000, "tags": ["shoegaze"]}
+    seeds = r.seed_weights({"Seed": 100}, {})
+    for obsc, want in ((0.0, 60), (0.5, 180), (1.0, 300)):
+        seen.clear()
+        r.similar_recs(seeds, r.known_set(["Seed"]), LF(), obscurity=obsc)
+        assert len(seen) == want, (obsc, len(seen), want)
+    seen.clear()
+    r.similar_recs(seeds, r.known_set(["Seed"]), LF(), obscurity=0.0, pool=250)  # explicit still wins
+    assert len(seen) == 250, len(seen)
+
+
 if __name__ == "__main__":
     for name, check in list(globals().items()):
         if name.startswith(("issue_", "feature_")):
