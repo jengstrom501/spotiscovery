@@ -19,6 +19,7 @@ the optional colorblind mode (`data-theme="cvd"`, header toggle). Never hardcode
 
 ## Skills & agents
 - design-taste-frontend — before visual changes (no em-dashes in UI copy)
+- animate — before adding or changing motion (Emil Kowalski's rules: ease-out, under 300ms, transform/opacity, reduced motion)
 - claude-api — before touching claude_mode.py
 - dataviz — before changing charts (data-storytelling for insight-first titles/headlines)
 - browse — screenshot the UI after frontend changes

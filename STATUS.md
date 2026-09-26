@@ -22,6 +22,11 @@ Round 5 (2026-09-26): removed Blends (Spotify does it, and ours didn't work well
 Songs you've missed (tick artists / save one / save all as a playlist), then Sounds like your favorites shelves, then
 New artists, then Ask Claude (moved from Blends). Playlists take N songs per artist. Live playlist save still untested.
 
+Round 6 (2026-09-26): Spotify green is the default theme, colorblind mode is an optional switch in the header
+(label left, knob right, 220ms eased travel). Eras on Trends now show a chevron + hover tint and expand in place
+(height transition, skeleton first, then /api/explore for that range) instead of jumping to the Explore tab.
+Fixed a class collision: a bare `.nm` rule (the Setup not-music list) was turning every rank-row name into a grid.
+
 ## Next
 - Recommendations: the final top 40 barely moves in the backtest (0-1 hits a year either way); try a taste-fit
   re-rank or Claude re-rank of real candidates, judged by backtest.py. Tried a tag-profile fit: no gain.

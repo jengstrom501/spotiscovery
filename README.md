@@ -3,7 +3,7 @@
 A local web app that looks through your Spotify listening history, shows how your taste has changed, and finds **bands you've overlooked** that sound like what you already play. It can also mix sub-genres you like into new directions.
 
 - **Trends:** leads with what matters (your current era, how mainstream you are, your peak month), then:
-  - **Your eras:** your history split into stretches named for what was distinctive then, like *synthwave × chillwave, 2018 to 2021*.
+  - **Your eras:** your history split into stretches named for what was distinctive then, like *synthwave × chillwave, 2018 to 2021*. Click one and it opens in place: what you played then, who defined it, what it sounded like, and the artists you found.
   - **Mainstream meter:** the Last.fm listener count of your typical artist over time. Watch yourself go underground.
   - **Lost loves:** artists you once played for hours and quietly dropped.
   - Hours and new artists per month, taste drift per tag, when you listen, and top artists by year.
