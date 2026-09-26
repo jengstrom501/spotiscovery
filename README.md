@@ -116,6 +116,16 @@ The colors are chosen to be readable with any common color blindness: one blue a
 
 **Blends.** Your tag profile is your listening weight spread over each artist's Last.fm tags, with junk tags like "seen live" and decades removed. A blend is the set of artists in *every* chosen tag's top 300 that you don't already know.
 
+## Privacy and security
+
+- **Your data stays on your machine.** The app listens on `127.0.0.1` only. Your history, your Spotify tokens and your ratings live in `deep_cuts.db`, and your API keys in `.env`. Both are git-ignored. Treat them like passwords: the database holds a Spotify refresh token, so never commit, share or upload it. If you fork this repo, keep those two entries in `.gitignore`.
+- **What leaves your machine:** artist and song names go to Last.fm, MusicBrainz, Deezer and Spotify to look up similar artists, release dates and photos. Nothing is sent to Anthropic unless you click *Ask Claude*, which sends a summary of your top artists and tags using your own key. Spotify's `ip_addr` field from the extended export is never stored.
+- **Don't expose it to a network.** There is no login, so anything that can reach the port can read your history and use your Last.fm, Spotify and Anthropic keys. Don't bind it to `0.0.0.0`, port-forward it, or put it behind a tunnel.
+- **Built-in protections:** requests with a foreign `Host` (DNS rebinding) or a cross-site `Origin` on writes are refused; the page can't be framed; a Content-Security-Policy limits where scripts and requests can go; third-party scripts are pinned to exact versions with integrity hashes; the photo relay only fetches from Spotify's and Deezer's image hosts, and doesn't follow redirects.
+- **Screenshots:** if you share screenshots or a recap card, they show your real listening.
+
+Found a security problem? Please open a GitHub issue (without personal data in it).
+
 ## Tests
 
 ```bash

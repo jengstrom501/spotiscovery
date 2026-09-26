@@ -51,6 +51,21 @@ def local_only():
         return jsonify(error="Cross-site request blocked"), 403
 
 
+# Every response: no framing (a page on another site could overlay this one and trick a click on "Ask Claude" or
+# "Save keys"), no MIME sniffing, no Referer, and a CSP that keeps scripts and requests to this app plus the pinned
+# jsDelivr files, so injected code couldn't send your listening history anywhere else.
+CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; "
+       "img-src 'self' data: blob: https:; connect-src 'self' https://cdn.jsdelivr.net; font-src 'self'; "
+       "object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")  # 'unsafe-inline': the page uses inline scripts and onclick
+
+
+@app.after_request
+def security_headers(resp):
+    resp.headers.update({"Content-Security-Policy": CSP, "X-Frame-Options": "DENY",
+                         "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer"})
+    return resp
+
+
 def save_env(updates):
     """Upsert KEY=value lines in .env, so keys survive a restart. Never logs values."""
     path = os.path.join(HERE, ".env")
@@ -104,6 +119,9 @@ def settings():
     for json_key, env_key in SETTINGS_FIELDS.items():
         v = (data.get(json_key) or "").strip()
         if not v:
+            continue
+        if not re.fullmatch(r"[\w.\-]+", v):  # a newline here would write extra KEY=value lines into .env
+            errors[json_key] = "That doesn't look like a key. Keys are letters, digits, - _ and . only."
             continue
         mod = VALIDATOR_MODULES.get(env_key)
         if mod and mod.check(v) is False:
@@ -316,7 +334,7 @@ def img():
     host = p.hostname or ""
     if p.scheme != "https" or not any(host == d or host.endswith("." + d) for d in IMAGE_HOSTS):  # not "evilscdn.co"
         return jsonify(error="Image host not allowed"), 400
-    r = requests.get(u, timeout=15)
+    r = requests.get(u, timeout=15, allow_redirects=False)  # the allow-list only vets this URL, so a redirect would skip it
     if not r.ok or not r.headers.get("Content-Type", "").startswith("image/"):
         return jsonify(error="Couldn't fetch image"), 502
     return r.content, 200, {"Content-Type": r.headers["Content-Type"], "Cache-Control": "max-age=86400"}

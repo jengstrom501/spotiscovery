@@ -75,6 +75,8 @@ def _access():
 
 def _get(path_or_url, **params):
     url = path_or_url if path_or_url.startswith("http") else API + path_or_url
+    if not url.startswith(API + "/"):  # the bearer token only ever goes to Spotify (paging follows Spotify's own "next" links)
+        raise ValueError("Refusing to send the Spotify token to " + url.split("/")[2])
     r = requests.get(url, params=params, headers={"Authorization": "Bearer " + _access()}, timeout=20)
     r.raise_for_status()
     return r.json()

@@ -6,7 +6,9 @@
 <title>Spotiscovery</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23BFE35A'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%230E0E0C'/%3E%3C/svg%3E">
 <link rel="preload" href="/static/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<!-- Third-party scripts are pinned to exact versions with integrity hashes: a changed file just won't run. -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"
+  integrity="sha384-NrKB+u6Ts6AtkIhwPixiKTzgSKNblyhlk0Sohlgar9UHUBzai/sgnNNWWd291xqt" crossorigin="anonymous"></script>
 <style>
   @font-face { font-family: "Geist"; src: url("/static/fonts/Geist-Variable.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
   @font-face { font-family: "Geist Mono"; src: url("/static/fonts/GeistMono-Variable.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
@@ -1605,17 +1607,22 @@ function renderCompare(r) {
 }
 
 // ---- travel map: world-atlas shapes drawn with d3-geo, loaded the first time a map is shown
-const loadScript = (src) => new Promise((ok, fail) => document.head.append(Object.assign(document.createElement("script"),
-  { src, onload: ok, onerror: () => fail(new Error("Couldn't load the map.")) })));
+// Exact versions + SRI hashes, so a tampered or updated file is refused instead of run next to your listening data.
+const loadScript = (src, integrity) => new Promise((ok, fail) => document.head.append(Object.assign(document.createElement("script"),
+  { src, integrity, crossOrigin: "anonymous", onload: ok, onerror: () => fail(new Error("Couldn't load the map.")) })));
 let mapAssets = null;
 function loadMapAssets() {
   mapAssets ||= (async () => {
-    await loadScript("https://cdn.jsdelivr.net/npm/d3-array@3/dist/d3-array.min.js");  // d3-geo needs it loaded first
-    await loadScript("https://cdn.jsdelivr.net/npm/d3-geo@3/dist/d3-geo.min.js");
-    await loadScript("https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js");
+    await loadScript("https://cdn.jsdelivr.net/npm/d3-array@3.2.4/dist/d3-array.min.js",  // d3-geo needs it loaded first
+      "sha384-VpKMdU+TlpggHFip46tJ/xkFUs8NFBwLqUMo3+3uiu411lU6eUQYsHVU+JFpA5ja");
+    await loadScript("https://cdn.jsdelivr.net/npm/d3-geo@3.1.1/dist/d3-geo.min.js",
+      "sha384-VNiKRUXp0MmglFfqDwkfuk+Y78C3WTJShdKSaFwOacLR3UmamxHIJLBTD3BadIXD");
+    await loadScript("https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js",
+      "sha384-Ukv1p/xTma6P4/2bY5KzWBw+ydSpXmhCMtyciIQVDJ1RmOxtCYNMF1uXT9T63H67");
+    const json = (url, integrity) => fetch(url, { integrity }).then((r) => r.json());
     const [world, codes] = await Promise.all([
-      fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json").then((r) => r.json()),
-      fetch("https://cdn.jsdelivr.net/npm/i18n-iso-countries@7/codes.json").then((r) => r.json())]);
+      json("https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json", "sha384-yOCJ+8ShBm8UDqtAVtAvxTDDf4gXo5edxl/YG0FmVC5OTmqVLl7utuVGBDEeZWHf"),
+      json("https://cdn.jsdelivr.net/npm/i18n-iso-countries@7.14.0/codes.json", "sha384-eVKywc5vVsOsWnqD2D1izh1iwo4IOgYN2JibIMk9QzVPzIfWSEQltoryfLPLAWsi")]);
     // Spotify says "DK"; the map's shapes are keyed by the ISO numeric code ("208")
     return { world, numeric: Object.fromEntries(codes.map(([a2, , num]) => [a2, num])) };
   })();
