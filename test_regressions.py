@@ -161,7 +161,7 @@ def feature_progress_reporting():
     assert [s["done"] for s in seen] == [0, 1, 2] and seen[0]["total"] == 3 and seen[0]["label"] == "Testing", seen
     assert "demo" not in client.get("/api/progress").get_json()
     for x in store.track("demo", range(10), "Testing"):
-        break  # a loop that stops early (auto_blends) must not leave a stuck bar
+        break  # a loop that stops early must not leave a stuck bar
     assert "demo" not in store.PROGRESS
 
 
@@ -249,6 +249,17 @@ def feature_playlist_export():
         # Regression: the pre-Feb-2026 endpoints (/users/{id}/playlists, /playlists/{id}/tracks) 403 for dev-mode apps
         assert posts[0] == ("/me/playlists", {"name": "Test", "public": False, "description": "Made with Spotiscovery"})
         assert posts[1] == ("/playlists/pl1/items", {"uris": ["spotify:track:hum", "spotify:track:duster"]})  # no cover, no dupe
+        # Several songs per artist: same-title repeats and other artists' covers are skipped, capped at 5
+        def get_many(path, **params):
+            a = params["q"].split('"')[1]
+            names = ["Song A", "Song B", "song a", "Song C"]
+            return {"tracks": {"items": [{"uri": "spotify:track:cover", "name": "Song A", "artists": [{"name": "Tribute Band"}]}]
+                                        + [{"uri": f"spotify:track:{a}{i}", "name": n, "artists": [{"name": a}]} for i, n in enumerate(names)]}}
+        sp._get = get_many
+        posts.clear()
+        r = client.post("/api/playlist", json={"items": [{"artist": "Hum", "count": 3}, {"artist": "Duster", "count": 99}]})
+        assert r.get_json()["added"] == 6 and posts[1][1]["uris"][:3] == ["spotify:track:Hum0", "spotify:track:Hum1", "spotify:track:Hum3"], (r.get_json(), posts)
+        sp._get = get
         sp.can_playlist = lambda: False  # an old token without the playlist permission
         r = client.post("/api/playlist", json={"items": [{"artist": "Hum"}]})
         assert r.status_code == 400 and "Reconnect" in r.get_json()["error"]

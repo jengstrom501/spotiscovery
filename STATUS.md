@@ -2,7 +2,7 @@
 
 **State (2026-09-25, renamed Spotiscovery):** Running on real data (151k plays, 2016-2026, extended export re-imported so albums,
 devices, countries, shuffle and start/end reasons are filled). Tabs: Trends, Explore (any period, daily averages,
-calendar, habits, genres by period, artist + day drill-downs), Similar sound, Blends, Recap (shareable card).
+calendar, habits, genres by period, artist + day drill-downs), Similar sound (songs you've missed, sounds like your favorites, new artists, Ask Claude), Recap (shareable card).
 
 ## Next
 1. Save a playlist for real (endpoints moved to post-Feb-2026 /me/playlists + /items; only tested with mocks)
@@ -17,6 +17,10 @@ Recap is insight-driven (insights.py): ~18 kinds of finding, scored and ranked, 
 Built 2026-09-25 (round 4): CVD-safe blue/orange theme; Explore sub-tabs + Customize (hide sections, per browser);
 Found early list (/api/found-early, MusicBrainz warms in the background); recap stats gutters + compact insight picker;
 Similar sound backtested (backtest.py) and rebuilt: taste-now seeds, 300 deep, consensus, scene shelves, thumbs.
+
+Round 5 (2026-09-26): removed Blends (Spotify does it, and ours didn't work well). Similar sound now leads with
+Songs you've missed (tick artists / save one / save all as a playlist), then Sounds like your favorites shelves, then
+New artists, then Ask Claude (moved from Blends). Playlists take N songs per artist. Live playlist save still untested.
 
 ## Next
 - Recommendations: the final top 40 barely moves in the backtest (0-1 hits a year either way); try a taste-fit

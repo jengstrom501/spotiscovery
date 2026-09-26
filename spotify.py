@@ -93,23 +93,28 @@ def _post(path, body):
     return r.json()
 
 
-def find_track(artist, track=None):
-    """Spotify URI for a named track, or for the artist's most popular match when no track is given."""
+def find_tracks(artist, track=None, count=1):
+    """Spotify URIs for a named track, or for up to `count` of the artist's top matches when no track is given
+    (search results come most relevant first; covers by other artists and repeat titles are skipped)."""
     q = f'artist:"{artist}"' + (f' track:"{track}"' if track else "")
     items = _get("/search", q=q, type="track", limit=10)["tracks"]["items"]
-    want = store.norm_loose(artist)
-    hit = next((t for t in items if any(store.norm_loose(a["name"]) == want for a in t["artists"])), None)
-    return hit and hit["uri"]
+    want, uris, titles = store.norm_loose(artist), [], set()
+    for t in items:
+        if any(store.norm_loose(a["name"]) == want for a in t["artists"]) and t.get("name", "").lower() not in titles:
+            uris.append(t["uri"])
+            titles.add(t.get("name", "").lower())
+            if len(uris) >= (1 if track else count):
+                break
+    return uris
 
 
 def create_playlist(name, items, description="Made with Spotiscovery"):
     """items: [{"artist", "track"?}]. Makes a private playlist and returns its link plus what couldn't be found."""
     uris, missing = [], []
     for it in store.track("playlist", items, "Finding each song on Spotify"):
-        uri = find_track(it["artist"], it.get("track"))
-        if uri and uri not in uris:
-            uris.append(uri)
-        elif not uri:
+        found = find_tracks(it["artist"], it.get("track"), max(1, min(int(it.get("count") or 1), 5)))
+        uris += [u for u in found if u not in uris]
+        if not found:
             missing.append(it.get("track") or it["artist"])
     if not uris:
         raise RuntimeError("None of these are on Spotify, so no playlist was made.")

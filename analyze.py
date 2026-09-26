@@ -48,7 +48,7 @@ def feedback():
 
 def inputs(now=False):
     """(seeds, known) from the export plays and the Spotify snapshot, whichever you have. now: seeds lean on
-    recent listening (Similar sound); otherwise all-time minutes (blends, deep cuts, Claude)."""
+    recent listening (Similar sound); otherwise all-time minutes (deep cuts, favorites, Claude)."""
     snap = store.get("spotify", {})
     minutes = taste_now() if now else minutes_by_artist()
     skip = hidden()  # Spotify's top-artist lists can include the same sleep-sounds "artist"

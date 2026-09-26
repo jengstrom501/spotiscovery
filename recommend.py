@@ -2,7 +2,6 @@
 import math
 import re
 from collections import Counter, defaultdict
-from itertools import combinations
 
 from store import norm, squash, track, track_key
 
@@ -122,7 +121,7 @@ def diversify(recs, k, share=0.25):
     return (out + rest)[:k]
 
 
-def deep_cuts(seeds, played, lf, n_seeds=25, per_artist=5, min_unheard=3):
+def deep_cuts(seeds, played, lf, n_seeds=40, per_artist=6, min_unheard=3):
     """Songs you've never played by artists you already love: each top artist's Last.fm top 20 minus the tracks
     in your history. played: {norm(artist): {track_key}}. Artists with the most gaps come first."""
     out = []
@@ -137,32 +136,26 @@ def deep_cuts(seeds, played, lf, n_seeds=25, per_artist=5, min_unheard=3):
     return out
 
 
-def blend(tags, known, lf, k=12):
-    """Artists that sit in the top lists of every tag, excluding ones you know.
-    Ranked by summed position, so the most representative of the mix come first."""
-    lists = [lf.tag_artists(t) for t in tags]
-    pos = [{norm(a): i for i, a in enumerate(lst)} for lst in lists]
-    names = {norm(a): a for a in lists[0]} if lists else {}
-    shared = [n for n in names if not is_known(n, known) and all(n in p for p in pos)]
-    shared.sort(key=lambda n: sum(p[n] for p in pos))
-    return [names[n] for n in shared[:k]]
-
-
-def auto_blends(profile, known, lf, n_tags=12, k=6, min_hits=3):
-    """Pairs of your top tags that make a good mix: both matter to you, neither contains
-    the other ('metal' / 'black metal'), and at least min_hits artists you don't know live there."""
-    tags = list(profile)[:n_tags]
-    pairs = [(a, b) for a, b in combinations(tags, 2) if a not in b and b not in a]
-    pairs.sort(key=lambda p: -profile[p[0]] * profile[p[1]])
-    out, used = [], defaultdict(int)
-    for a, b in track("blends", pairs, "Trying tag pairs"):
-        if used[a] >= 2 or used[b] >= 2:  # spread blends across your tags
-            continue
-        artists = blend([a, b], known, lf)
-        if len(artists) >= min_hits:
-            out.append({"tags": [a, b], "artists": artists})
-            used[a] += 1
-            used[b] += 1
-        if len(out) == k:
-            break
+def favorites_like(seeds, known, lf, n=10, per=6, obscurity=0.5):
+    """For each of your top artists, similar artists you've never played, best match first (the obscurity slider
+    demotes big names like it does elsewhere). An artist shows under one favorite only, the first that claims it,
+    so the shelves don't repeat. Returns [{"seed", "artists": [{name, match, listeners, tags}]}]."""
+    out, used = [], set()
+    for seed, _ in track("favorites", top_seeds(seeds, n), "Finding artists that sound like your favorites"):
+        found = []
+        for cand, match in lf.similar(seed):
+            if is_known(cand, known) or norm(cand) in used:
+                continue
+            inf = lf.info(cand)
+            if not inf or is_known(inf["name"], known, inf["tags"]) or norm(inf["name"]) in used:
+                continue
+            found.append({"name": inf["name"], "match": round(match, 2), "listeners": inf["listeners"],
+                          "tags": [t for t in inf["tags"] if good_tag(t)][:4],
+                          "rank": match / (1 + inf["listeners"] / 100_000) ** obscurity})
+            if len(found) >= per * 2:  # each lookup is a Last.fm call (cached after the first), so look at a dozen at most
+                break
+        picks = sorted(found, key=lambda a: -a["rank"])[:per]
+        used.update(norm(a["name"]) for a in picks)
+        if picks:
+            out.append({"seed": seed, "artists": [{k: v for k, v in a.items() if k != "rank"} for a in picks]})
     return out

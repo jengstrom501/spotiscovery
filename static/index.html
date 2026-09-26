@@ -196,6 +196,25 @@
   .pl-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 12px 0 4px; }
   .pl-row button { padding: 6px 14px; font-size: 13px; }
   .pl-row .status { min-height: 0; }
+  .card { position: relative; }
+  .card .pick { position: absolute; top: 10px; left: 10px; z-index: 2; display: flex; align-items: center; gap: 6px; padding: 4px 11px 4px 8px;
+                border-radius: 99px; background: rgba(14,14,12,.85); border: 1px solid var(--line); font-size: 12.5px; cursor: pointer; }
+  .card .pick input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
+  .card .pick:has(input:checked) { border-color: var(--accent); }
+  .card .one { margin-top: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+  .card .one .status { min-height: 0; font-size: 12.5px; }
+  .sec-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 8px 24px; }
+  .sec-head > div { max-width: 72ch; }
+  .fav { margin-top: 26px; min-width: 0; }
+  .fav-head { display: flex; align-items: center; gap: 12px; }
+  .fav-head img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex: none; }
+  .fav h3 { font-size: 18px; font-weight: 600; letter-spacing: -.02em; }
+  .pickbar { position: fixed; left: 50%; transform: translateX(-50%); bottom: 20px; z-index: 30; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
+             padding: 12px 18px; background: var(--raise); border: 1px solid #45453E; border-radius: var(--r-card); box-shadow: 0 18px 40px rgba(0,0,0,.5);
+             max-width: calc(100vw - 32px); }
+  .pickbar select { width: auto; padding: 4px 8px; margin-left: 6px; }
+  #similar:has(.pickbar:not([hidden])) { padding-bottom: 120px; }  /* the bar shouldn't cover the last row */
+  .pickbar .status { min-height: 0; }
   .card ol.tracks { margin: 2px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.5; }
   .card ol.tracks a { color: var(--fg); text-decoration: none; }
   .card ol.tracks a:hover { color: var(--accent); text-decoration: underline; }
@@ -213,14 +232,10 @@
 
   .tag { display: inline-block; font: 11.5px var(--mono); padding: 2px 9px; margin: 0 4px 4px 0; border-radius: 99px;
          background: var(--surface-2); color: var(--fg-dim); border: 1px solid transparent; }
-  .tag-pick { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px; }
-  .tag-pick .tag { font-size: 13px; padding: 6px 14px; margin: 0; cursor: pointer; border-color: var(--line); background: var(--bg); color: var(--fg); }
-  .tag-pick .tag:hover { border-color: var(--accent); transform: none; }
-  .tag-pick .tag[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-  .blend { margin-top: 28px; min-width: 0; }
-  .blend h3 { font-size: 18px; font-weight: 600; letter-spacing: -.02em; }
-  .blend h3 .x { color: var(--accent); font-weight: 400; margin: 0 4px; }
-  .blend > p { margin-top: 6px; max-width: 70ch; font-size: 14px; color: var(--fg-dim); }
+  .direction { margin-top: 28px; min-width: 0; }
+  .direction h3 { font-size: 18px; font-weight: 600; letter-spacing: -.02em; }
+  .direction h3 .x { color: var(--accent); font-weight: 400; margin: 0 4px; }
+  .direction > p { margin-top: 6px; max-width: 70ch; font-size: 14px; color: var(--fg-dim); }
   .claude-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; }
   .claude-head p { max-width: 60ch; }
 
@@ -536,7 +551,6 @@
       <button role="tab" aria-selected="true" data-tab="trends">Trends</button>
       <button role="tab" aria-selected="false" data-tab="explore">Explore</button>
       <button role="tab" aria-selected="false" data-tab="similar">Similar sound</button>
-      <button role="tab" aria-selected="false" data-tab="blends">Blends</button>
       <button role="tab" aria-selected="false" data-tab="recap">Recap</button>
     </nav>
     <div class="top-right">
@@ -659,52 +673,68 @@
   </dialog>
 
   <section class="wrap tab" id="similar" hidden>
-    <div class="toolbar">
-      <div class="range">
-        <label for="obscurity">Mainstream</label>
-        <input type="range" id="obscurity" min="0" max="1" step="0.25" value="0.5">
-        <label for="obscurity">Deep cuts</label>
-        <span class="dim small" id="obscurity-label"></span>
+    <div class="block first" id="missed">
+      <div class="sec-head">
+        <div>
+          <h2>Songs you've missed</h2>
+          <p class="dim">The most-played songs on Last.fm by artists you already love that aren't in your history yet. Artists with the most gaps come first.
+            Tick the artists you want and save them together, or save one artist with the button on its card.</p>
+        </div>
+        <button class="link" data-selall="deep-body">Select all / none</button>
       </div>
-      <button class="primary" id="run-similar">Find artists</button>
-    </div>
-    <p class="status" id="similar-status" role="status" style="margin-top:12px"></p>
-    <div class="grid feature" id="similar-body">
-      <div class="empty" style="grid-column: 1 / -1">Set how far from the mainstream you want to go, then find artists.</div>
-    </div>
-    <div class="block">
-      <h2>Songs you've missed</h2>
-      <p class="dim">The most-played songs on Last.fm by artists you already love that aren't in your history yet. Artists with the most gaps come first.</p>
       <p class="status" id="deep-status" role="status" style="margin-top:10px"></p>
       <div id="deep-body"></div>
     </div>
-  </section>
 
-  <section class="wrap tab" id="blends" hidden>
-    <div class="block first">
-      <h2>Mix your own</h2>
-      <p class="dim">Pick two or three of your tags to find artists that sit in all of them.</p>
-      <div id="tag-pick" class="tag-pick"></div>
-      <p class="status" id="tag-pick-status" role="status" style="margin-top:8px"></p>
-      <div class="row" style="margin-top:16px"><button class="primary" id="run-blend" disabled>Blend selected</button></div>
-      <p class="status" id="blend-status" role="status" style="margin-top:10px"></p>
-      <div id="manual-body"></div>
+    <div class="block" id="favs">
+      <div class="sec-head">
+        <div>
+          <h2>Sounds like your favorites</h2>
+          <p class="dim">For each artist you play most, artists you've never played that sit in the same sound. Save a whole shelf as a playlist, or tick the ones you like.</p>
+        </div>
+        <button class="link" data-selall="favs-body">Select all / none</button>
+      </div>
+      <p class="status" id="favs-status" role="status" style="margin-top:10px"></p>
+      <div id="favs-body"></div>
     </div>
+
+    <div class="block" id="find">
+      <h2>New artists in your sound</h2>
+      <p class="dim">Artists close to what you play now, on shelves by scene. The slider pushes big names down so smaller acts come through.</p>
+      <div class="toolbar">
+        <div class="range">
+          <label for="obscurity">Mainstream</label>
+          <input type="range" id="obscurity" min="0" max="1" step="0.25" value="0.5">
+          <label for="obscurity">Deep cuts</label>
+          <span class="dim small" id="obscurity-label"></span>
+        </div>
+        <button class="primary" id="run-similar">Find artists</button>
+      </div>
+      <p class="status" id="similar-status" role="status" style="margin-top:12px"></p>
+      <div class="grid feature" id="similar-body">
+        <div class="empty" style="grid-column: 1 / -1">Set how far from the mainstream you want to go, then find artists.</div>
+      </div>
+    </div>
+
     <div class="block">
       <div class="claude-head">
         <div>
           <h2>Ask Claude</h2>
-          <p class="dim small" style="margin-top:4px">Claude reads your listening profile and proposes blends. Every artist it names is checked against Last.fm before it shows up here.</p>
+          <p class="dim small" style="margin-top:4px">Claude reads your listening profile and proposes sound directions to explore, with artists for each. Every artist it names is checked against Last.fm before it shows up here.</p>
         </div>
         <button id="run-claude" disabled>Ask Claude</button>
       </div>
       <p class="status" id="claude-status" role="status" style="margin-top:10px"></p>
       <div id="claude-body"></div>
     </div>
-    <div class="block">
-      <h2>From your top tags</h2>
-      <p class="status" id="blends-status" role="status" style="margin-top:4px"></p>
-      <div id="blends-body"></div>
+
+    <div class="pickbar" id="pickbar" hidden>
+      <span id="pick-count"></span>
+      <label id="pick-n-wrap" class="small">Songs per artist
+        <select id="pick-n"><option>1</option><option selected>3</option><option>5</option></select></label>
+      <button class="primary" id="pick-save">Save as Spotify playlist</button>
+      <button class="link small" id="pick-clear">Clear</button>
+      <span class="status" id="pick-status" role="status"></span>
     </div>
   </section>
 
@@ -858,7 +888,7 @@ async function loadStatus() {
   // Spotify is optional once history is imported. Last.fm is what every recommendation needs.
   const noData = !state.connected && !state.plays;
   say("setup-status", !state.lastfm && noData ? "Add a Last.fm key, then connect Spotify or import your history."
-    : !state.lastfm ? "Add a Last.fm key. Similar sound and Blends need it."
+    : !state.lastfm ? "Add a Last.fm key. Similar sound needs it."
     : noData ? "Connect Spotify or import your history to get started." : "");
   const err = new URLSearchParams(location.search).get("error");
   if (err) {
@@ -1941,14 +1971,13 @@ $("recap-copy").onclick = async () => {
 };
 
 // ---- tabs
-const TABS = ["trends", "explore", "similar", "blends", "recap"];
+const TABS = ["trends", "explore", "similar", "recap"];
 // "#explore/2025-01-01/2025-12-31": the tab, then that tab's own state, so drill-downs survive reload and Back
 const route = () => location.hash.slice(1).split("/").map(decodeURIComponent);
 const currentTabFromUrl = () => (TABS.includes(route()[0]) ? route()[0] : "trends");
 const loaded = {};
 const vsFromRoute = () => { const r = route(); return r[3] === "vs" && r[5] ? [r[4], r[5]] : null; };
-const loaders = { trends: loadTrends, explore: () => { ex.vs = vsFromRoute(); return loadExplore(route()[1], route()[2], false); }, similar: loadDeepCuts,
-                  blends: loadBlends, recap: () => loadRecap() };
+const loaders = { trends: loadTrends, explore: () => { ex.vs = vsFromRoute(); return loadExplore(route()[1], route()[2], false); }, similar: loadSimilarTab, recap: () => loadRecap() };
 // push=false on a back/forward navigation and on first load, so we don't fight the history we're responding to.
 function showTab(name, push = true) {
   document.querySelectorAll("nav.tabs button").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === name));
@@ -2144,10 +2173,15 @@ function tile(name) {
   const initials = name.replace(/^the\s+/i, "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => [...w][0]).join("").toUpperCase();
   return `<span class="ph" aria-hidden="true" style="background: linear-gradient(135deg, ${a}8c, ${b}33 70%, #0E0E0C)">${esc(initials)}</span>`;
 }
-function card(a, extra = "") {
+// item: {artist, tracks?}. Given one, the card gets a checkbox (for the playlist bar) and its own save button.
+const picks = new Map();
+function card(a, extra = "", item = null) {
+  const key = item && String(picks.size + 1);
+  if (key) picks.set(key, item);
   const art = tile(a.name) + (a.image ? `<img src="${esc(a.image)}" alt="" loading="lazy" onerror="this.remove()">` : "");
   const tags = (a.tags || []).map((t) => `<span class="tag">${esc(t)}</span>`).join("");
   return `<article class="card">
+    ${key ? `<label class="pick"><input type="checkbox" data-pick="${key}"><span>Add</span></label>` : ""}
     <a class="art" href="${esc(a.url)}" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true">${art}</a>
     <div class="body">
       <a class="name" href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.name)}</a>
@@ -2155,10 +2189,10 @@ function card(a, extra = "") {
       ${tags ? `<div>${tags}</div>` : ""}
       ${a.because ? `<p class="why">Because you play ${a.because.map(esc).join(", ")}</p>` : ""}
       ${extra}
+      ${key ? `<div class="one"><button class="link small" data-save-one="${key}">${item.tracks ? "Save these songs" : "Save top songs"}</button><span class="status" id="one-${key}" role="status"></span></div>` : ""}
     </div></article>`;
 }
 const FIRST_RUN = "Asking Last.fm. The first run takes a minute or two, then it is cached.";
-const blendTitle = (tags) => tags.map(esc).join(`<span class="x">×</span>`);
 
 const OBSCURITY_LABELS = { "0": "No filter", "0.25": "Slight lean to lesser-known", "0.5": "Balanced",
   "0.75": "Leans lesser-known", "1": "Strongly favors lesser-known" };
@@ -2186,9 +2220,9 @@ function runSimilar() {
     const big = Object.entries(by).filter(([, v]) => v.length >= 3), more = recs.filter((r) => by[r.scene].length < 3);
     const fb = (r) => `<div class="fb"><button class="link small" data-fb="1" data-nm="${esc(r.name)}">More like this</button>
       <button class="link small" data-fb="-1" data-nm="${esc(r.name)}">Not for me</button></div>`;
-    const shelf = (title, rs) => `<h3 class="shelf">${esc(title)} <span class="dim mono small">${rs.length}</span></h3>` + rs.map((r) => card(r, fb(r))).join("");
+    const shelf = (title, rs) => `<h3 class="shelf">${esc(title)} <span class="dim mono small">${rs.length}</span></h3>` + rs.map((r) => card(r, fb(r), { artist: r.name })).join("");
     out.innerHTML = recs.length ? `<div style="grid-column: 1 / -1">${playlistButton("Spotiscovery: similar sound",
-        recs.map((r) => ({ artist: r.name })))}</div>`
+        recs.map((r) => ({ artist: r.name, count: 3 })))}</div>`
         + big.map(([sc, rs]) => shelf(sc[0].toUpperCase() + sc.slice(1), rs)).join("") + (more.length ? shelf("More sounds", more) : "")
       : `<div class="empty" style="grid-column: 1 / -1">Nothing new at this setting. Try moving the slider.</div>`;
     reveal(out);
@@ -2201,99 +2235,107 @@ $("obscurity").oninput = updateObscurityLabel;
 $("obscurity").onchange = runSimilar;
 updateObscurityLabel();
 
-// ---- "Save as playlist" buttons. Payloads live in a map, so a button only carries an id.
+// ---- saving playlists. Section buttons carry an id into this map; cards carry a key into `picks`.
 const playlists = new Map();
 function playlistButton(name, items) {
   const id = playlists.size + 1;
   playlists.set(String(id), { name, items });
-  return `<div class="pl-row"><button class="pl" data-pl="${id}">Save as Spotify playlist</button><span class="status" id="pl-status-${id}" role="status"></span></div>`;
+  return `<div class="pl-row"><button class="pl" data-pl="${id}">Save all as Spotify playlist</button><span class="status" id="pl-status-${id}" role="status"></span></div>`;
 }
-document.addEventListener("click", async (e) => {
-  const b = e.target.closest("[data-pl]");
-  if (!b) return;
-  const id = b.dataset.pl, { name, items } = playlists.get(id), status = `pl-status-${id}`;
+// Items with listed songs save exactly those; the rest save their top n songs (n per artist).
+const flat = (items, n) => items.flatMap((it) => it.tracks ? it.tracks.map((track) => ({ artist: it.artist, track })) : [{ artist: it.artist, count: n }]);
+async function savePlaylist(name, items, statusId, btn) {
   if (!state.playlists) {
-    say(status, state.connected ? "Reconnect Spotify in Setup to allow playlists (one click)." : "Connect Spotify in Setup first.", true);
+    say(statusId, state.connected ? "Reconnect Spotify in Setup to allow playlists (one click)." : "Connect Spotify in Setup first.", true);
     return setSetup(true);
   }
-  await run(status, "Saving…", async () => {
+  await run(statusId, "Saving…", async () => {
     const r = await api("/api/playlist", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, items }) });
-    $(status).innerHTML = `Saved ${r.added} songs. <a href="${esc(r.url)}" target="_blank" rel="noopener">Open in Spotify</a>`
+    $(statusId).innerHTML = `Saved ${r.added} songs. <a href="${esc(r.url)}" target="_blank" rel="noopener">Open in Spotify</a>`
       + (r.missing.length ? ` <span class="dim">(${r.missing.length} not on Spotify)</span>` : "");
-  }, null, b, { tasks: ["playlist"] });
+  }, null, btn, { tasks: ["playlist"] });
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-pl]");
+  if (!b) return;
+  const id = b.dataset.pl, { name, items } = playlists.get(id);
+  savePlaylist(name, items, `pl-status-${id}`, b);
 });
 
-// ---- songs you've missed by artists you already play
+// The ticked cards, shown in a bar at the bottom, saved as one playlist. The DOM is the source of truth, so
+// re-rendering a section quietly drops its ticks.
+const ticked = () => [...document.querySelectorAll("#similar input[data-pick]:checked")].map((c) => picks.get(c.dataset.pick));
+function updatePickbar() {
+  const items = ticked();
+  $("pickbar").hidden = !items.length;
+  $("pick-count").textContent = `${items.length} ${items.length === 1 ? "artist" : "artists"} selected`;
+  $("pick-n-wrap").hidden = items.every((i) => i.tracks);  // only matters for picks without listed songs
+}
+$("similar").addEventListener("change", (e) => e.target.dataset.pick != null && updatePickbar());
+$("similar").addEventListener("click", (e) => {
+  const all = e.target.closest("[data-selall]"), one = e.target.closest("[data-save-one]");
+  if (all) {
+    const boxes = [...$(all.dataset.selall).querySelectorAll("input[data-pick]")];
+    const on = boxes.some((c) => !c.checked);
+    boxes.forEach((c) => (c.checked = on));
+    updatePickbar();
+  } else if (one) {
+    const it = picks.get(one.dataset.saveOne);
+    savePlaylist(`Spotiscovery: ${it.artist}`, flat([it], 5), `one-${one.dataset.saveOne}`, one);
+  }
+});
+$("pick-clear").onclick = () => { document.querySelectorAll("#similar input[data-pick]").forEach((c) => (c.checked = false)); updatePickbar(); say("pick-status", ""); };
+$("pick-save").onclick = () => savePlaylist("Spotiscovery: my picks", flat(ticked(), +$("pick-n").value), "pick-status", $("pick-save"));
+
+// ---- songs you've missed by artists you already play, then artists that sound like your favorites
 const trackUrl = (artist, track) => "https://open.spotify.com/search/" + encodeURIComponent(`${artist} ${track}`);
 function loadDeepCuts() {
   const out = $("deep-body");
   out.innerHTML = `<div class="hscroll">${skeleton(5)}</div>`;
   return run("deep-status", "Checking which of their best-known songs you've heard…", async () => {
     const rows = await api("/api/deep-cuts");
-    out.innerHTML = rows.length ? playlistButton("Spotiscovery: songs I've missed", rows.flatMap((a) => a.tracks.map((track) => ({ artist: a.name, track }))))
-      + `<div class="hscroll">${rows.map((a) => card(a, `<p class="meta">You've heard ${a.heard} of their top ${a.of}</p>
+    const songs = rows.reduce((n, a) => n + a.tracks.length, 0);
+    if (rows.length) say("deep-status", `${rows.length} artists, ${songs} songs you haven't played yet.`);
+    out.innerHTML = rows.length ? playlistButton("Spotiscovery: songs I've missed", flat(rows.map((a) => ({ artist: a.name, tracks: a.tracks }))))
+      + `<div class="grid">${rows.map((a) => card(a, `<p class="meta">You've heard ${a.heard} of their top ${a.of}</p>
       <ol class="tracks">${a.tracks.map((t) => `<li><a href="${trackUrl(a.name, t)}" target="_blank" rel="noopener">${esc(t)}</a></li>`).join("")}</ol>
-      <button class="link small" data-artist="${esc(a.name)}">Your history with them</button>`)).join("")}</div>`
+      <button class="link small" data-artist="${esc(a.name)}">Your history with them</button>`, { artist: a.name, tracks: a.tracks })).join("")}</div>`
       : `<div class="empty">You've heard the best-known songs of all your top artists. Impressive.</div>`;
     reveal(out);
   }, out, null, { tasks: ["deepcuts", "cards"] });
 }
+function loadFavorites() {
+  const out = $("favs-body");
+  out.innerHTML = `<div class="hscroll">${skeleton(5)}</div>`;
+  return run("favs-status", FIRST_RUN, async () => {
+    const rows = await api("/api/favorites");
+    out.innerHTML = rows.length ? rows.map((r) => `<div class="fav">
+        <div class="fav-head">${r.image ? `<img src="${esc(r.image)}" alt="" loading="lazy" onerror="this.remove()">` : ""}<h3>Sounds like ${artistBtn(r.seed)}</h3></div>
+        ${playlistButton("Spotiscovery: like " + r.seed, r.artists.map((a) => ({ artist: a.name, count: 3 })))}
+        <div class="hscroll">${r.artists.map((a) => card(a, `<p class="why">${Math.round(a.match * 100)}% match</p>`, { artist: a.name })).join("")}</div></div>`).join("")
+      : `<div class="empty">Nothing new near your favorites yet.</div>`;
+    reveal(out);
+  }, out, null, { tasks: ["favorites", "cards"] });
+}
+// One after the other: both lean on Last.fm's rate limit, so the progress bars stay honest
+async function loadSimilarTab() {
+  const a = await loadDeepCuts();
+  return (await loadFavorites()) && a;
+}
 
-// ---- blends
-const picked = new Set();
-function updateTagPick() {
-  const atCap = picked.size >= 3;
-  $("tag-pick").querySelectorAll("button").forEach((b) => { b.disabled = atCap && !picked.has(b.dataset.tag); });
-  $("run-blend").disabled = picked.size < 2;
-  say("tag-pick-status", atCap ? "Up to 3 tags." : "");
-}
-async function loadBlends() {
-  const out = $("blends-body");
-  out.innerHTML = [1, 2].map(() => `<div class="blend"><span class="sk-h"></span><div class="hscroll">${skeleton(5)}</div></div>`).join("");
-  return run("blends-status", FIRST_RUN, async () => {
-    const d = await api("/api/blends");
-    $("tag-pick").innerHTML = d.tags.map(([t]) => `<button class="tag" aria-pressed="false" data-tag="${esc(t)}">${esc(t)}</button>`).join("");
-    picked.clear();  // chips were re-rendered unpressed
-    $("tag-pick").querySelectorAll("button").forEach((b) => (b.onclick = () => {
-      const on = !picked.has(b.dataset.tag);
-      if (on && picked.size >= 3) return;
-      on ? picked.add(b.dataset.tag) : picked.delete(b.dataset.tag);
-      b.setAttribute("aria-pressed", on);
-      updateTagPick();
-    }));
-    updateTagPick();
-    out.innerHTML = d.blends.length ? d.blends.map((b) => `<div class="blend">
-        <h3>${blendTitle(b.tags)}</h3>${playlistButton("Spotiscovery: " + b.tags.join(" × "), b.artists.map((a) => ({ artist: a.name })))}
-        <div class="hscroll">${b.artists.map((a) => card(a)).join("")}</div></div>`).join("")
-      : `<div class="empty">No blends yet. They need a bit more listening data.</div>`;
-    reveal(out);
-  }, out, null, { tasks: ["profile", "blends", "cards"] });
-}
-$("run-blend").onclick = async () => {
-  const out = $("manual-body");
-  out.innerHTML = `<div class="blend"><span class="sk-h"></span><div class="hscroll">${skeleton(5)}</div></div>`;
-  await run("blend-status", "Blending…", async () => {
-    const d = await api("/api/blend?tags=" + encodeURIComponent([...picked].join(",")));
-    out.innerHTML = `<div class="blend"><h3>${blendTitle(d.tags)}</h3>` +
-      (d.artists.length ? playlistButton("Spotiscovery: " + d.tags.join(" × "), d.artists.map((a) => ({ artist: a.name })))
-        + `<div class="hscroll">${d.artists.map((a) => card(a)).join("")}</div>` : `<div class="empty">No overlap you haven't heard. Try another mix.</div>`) + `</div>`;
-    reveal(out);
-  }, out, $("run-blend"), { tasks: ["cards"], idle: "Asking Last.fm" });
-  $("run-blend").disabled = picked.size < 2;
-};
 $("run-claude").onclick = () => {
   const out = $("claude-body");
-  out.innerHTML = [1, 2].map(() => `<div class="blend"><span class="sk-h"></span><div class="hscroll">${skeleton(5)}</div></div>`).join("");
+  out.innerHTML = [1, 2].map(() => `<div class="direction"><span class="sk-h"></span><div class="hscroll">${skeleton(5)}</div></div>`).join("");
   run("claude-status", "Claude is reading your profile. This takes 30 to 60 seconds.", async () => {
     const blends = await api("/api/claude", { method: "POST" });
-    out.innerHTML = blends.map((b) => `<div class="blend">
+    out.innerHTML = blends.map((b) => `<div class="direction">
       <h3>${esc(b.name)}</h3>
       <div style="margin-top:8px">${b.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>
       <p>${esc(b.why)}${b.dropped ? ` (${b.dropped} dropped: unverified or already known.)` : ""}</p>
       ${b.artists.length ? playlistButton("Spotiscovery: " + b.name, b.artists.map((a) => ({ artist: a.name }))) : ""}
       <div class="hscroll">${b.artists.map((a) => card(a, `<p class="why">${esc(a.note)}</p>`)).join("")}</div></div>`).join("");
     reveal(out);
-  }, out, $("run-claude"), { tasks: ["profile", "trends", "cards"], idle: "Claude is writing your blends" });
+  }, out, $("run-claude"), { tasks: ["profile", "trends", "cards"], idle: "Claude is thinking about your sound" });
 };
 
 loadStatus().then(() => showTab(currentTabFromUrl(), false)).catch((e) => { setSetup(true); say("setup-status", e.message, true); });

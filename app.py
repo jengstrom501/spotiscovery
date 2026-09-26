@@ -221,7 +221,7 @@ def upload():
 def playlist():
     """Save a list of recs as a private Spotify playlist. Body: {name, items: [{artist, track?}]}."""
     data = request.get_json(silent=True) or {}
-    items = [i for i in data.get("items", []) if isinstance(i, dict) and i.get("artist")][:200]
+    items = [i for i in data.get("items", []) if isinstance(i, dict) and i.get("artist")][:300]
     if not items:
         return jsonify(error="Nothing to save."), 400
     if not spotify.can_playlist():
@@ -369,16 +369,6 @@ def with_cards(names_or_recs):
     return [{**r, **spotify.artist_card(r["name"])} for r in store.track("cards", names_or_recs, "Fetching artist photos")]
 
 
-def named_cards(names):
-    """Cards for bare artist names, with Last.fm listeners + tags like the similar-sound cards."""
-    out = []
-    for n in store.track("cards", names, "Looking up each artist"):
-        inf = lastfm.info(n) or {"listeners": 0, "tags": []}
-        out.append({"name": n, "listeners": inf["listeners"],
-                    "tags": [t for t in inf["tags"] if recommend.good_tag(t)][:4]})
-    return with_cards(out)
-
-
 @app.get("/api/similar")
 def similar():
     seeds, known = analyze.inputs(now=True)
@@ -416,22 +406,17 @@ def profile():
     return seeds, known, recommend.tag_profile(seeds, lastfm)
 
 
-@app.get("/api/blends")
-def blends():
-    seeds, known, prof = profile()
-    auto = recommend.auto_blends(prof, known, lastfm)
-    for b in auto:
-        b["artists"] = named_cards(b["artists"][:8])
-    return jsonify(tags=[[t, round(w, 1)] for t, w in list(prof.items())[:30]], blends=auto)
-
-
-@app.get("/api/blend")
-def blend():
-    tags = [t.strip().lower() for t in request.args.get("tags", "").split(",") if t.strip()]
-    if len(tags) < 2:
-        return jsonify(error="Pick at least two tags"), 400
-    _, known = analyze.inputs()
-    return jsonify(tags=tags, artists=named_cards(recommend.blend(tags, known, lastfm)))
+@app.get("/api/favorites")
+def favorites():
+    """Shelves of artists you haven't played that sound like your favorites, one shelf per favorite."""
+    seeds, known = analyze.inputs()
+    if not seeds:
+        return jsonify(error="No listening data yet. Connect Spotify or upload your export."), 400
+    rows = recommend.favorites_like(seeds, known, lastfm)
+    for r in rows:
+        r["image"] = spotify.artist_card(r["seed"]).get("image")
+        r["artists"] = with_cards(r["artists"])
+    return jsonify(rows)
 
 
 @app.post("/api/claude")

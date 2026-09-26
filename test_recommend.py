@@ -40,9 +40,10 @@ assert famous(recs0) > 10 * famous(recs), "obscurity should crush a 5M-listener 
 prof = r.tag_profile(seeds, lf)
 assert list(prof)[0] == "shoegaze" and "seen live" not in prof, prof
 
-assert r.blend(["shoegaze", "dream pop"], known, lf) == ["Ride", "Nothing"]
-assert r.blend(["shoegaze", "dream pop", "noise pop"], known, lf) == ["Nothing", "Ride"]  # pos sums 5 vs 6
-auto = r.auto_blends(prof, known, lf, min_hits=2)
-assert auto and all(set(b["artists"]).isdisjoint({"Slowdive", "My Bloody Valentine"}) for b in auto)
+# Favorites: one shelf per favorite, unknown artists only, big names demoted, nobody repeated on a second shelf
+fav = r.favorites_like(seeds, known, lf, n=2, per=2, obscurity=1.0)
+assert [x["seed"] for x in fav] == ["Slowdive"], fav  # Ride and Hum are taken, so My Bloody Valentine has nothing left
+assert {a["name"] for a in fav[0]["artists"]} == {"Ride", "Hum"}, fav[0]  # Famous Band (5M listeners) loses to both
+assert "rank" not in fav[0]["artists"][0] and fav[0]["artists"][0]["tags"] == ["shoegaze"]
 
 print("ok")

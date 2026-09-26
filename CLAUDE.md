@@ -1,5 +1,5 @@
 # Spotiscovery
-Spotify history → trends + overlooked-artist recs + sub-genre blends. Local Flask app,
+Spotify history → trends + overlooked-artist recs + songs you've missed, saved as playlists. Local Flask app,
 public GitHub repo (nested git repo, ignored by the Claude OS repo).
 
 ## How to resume
