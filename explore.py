@@ -45,6 +45,12 @@ def _day(s, default):
         return default
 
 
+def bad_dates(*vals):
+    """True if any of these was given but is not a real date. Empty means "not specified", which is fine and
+    falls back to the data's own edges. A typo in the URL should say so, not quietly hand back all time."""
+    return any(v and _day(v, None) is None for v in vals)
+
+
 def _slice(c, start, end):
     return c["rows"][bisect_left(c["days"], start):bisect_right(c["days"], end)]
 
@@ -156,6 +162,8 @@ def explore(start=None, end=None, today=None):
     rows_all = c["rows"]
     if not rows_all:
         return {"empty": True}
+    if bad_dates(start, end):
+        return {"error": "Dates must look like 2024-01-31."}
     data_start, data_end = rows_all[0].day, rows_all[-1].day
     start = max(_day(start, data_start), data_start)
     end = min(_day(end, data_end), data_end)
