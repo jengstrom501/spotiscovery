@@ -2,6 +2,19 @@
 
 A local web app that looks through your Spotify listening history, shows how your taste has changed, and finds **bands you've overlooked** that sound like what you already play. It can also mix sub-genres you like into new directions.
 
+## Try it in 30 seconds
+
+```bash
+pip install -r requirements.txt && python app.py
+```
+
+Open **http://127.0.0.1:8888** and click **Show me, with demo data**. You get the whole app running on a made-up
+four-year listening history: no API keys, no sign-in, no network calls. It is the fastest way to see whether this is
+worth setting up on your own data, because Spotify takes about five days to send you the history that makes it good.
+
+The demo lives in its own database file and is thrown away when you switch back. While it is on, anything that would
+touch your accounts or your keys is refused.
+
 - **Trends:** leads with what matters (your current era, how mainstream you are, your peak month), then:
   - **Your eras:** your history split into stretches named for what was distinctive then, like *synthwave × chillwave, 2018 to 2021*. Click one and it opens in place: what you played then, who defined it, what it sounded like, and the artists you found.
   - **Mainstream meter:** the Last.fm listener count of your typical artist over time. Watch yourself go underground.
@@ -37,9 +50,19 @@ Everything runs on your own machine. Your data stays in a local SQLite file.
 
 > **Why Last.fm?** In November 2024 Spotify shut off its recommendations, related-artists and audio-features APIs for new apps. Spotiscovery gets your *history* from Spotify and *similarity and genre tags* from Last.fm, which is free.
 
-## Setup (about 10 minutes)
+## Setup with your own data
 
-You need Python 3.10+.
+You need Python 3.10+. Setup is four steps and the app numbers them for you. Only the first is required:
+
+| Step | What | How long |
+|---|---|---|
+| 1 | **Last.fm API key**: every recommendation and genre comes from here | 1 minute, free |
+| 2 | **Your history**: connect Spotify for the last 30 days, or upload the export for everything | instant, or about 5 days for the export |
+| 3 | **Spotify Client ID**: only if you want to connect Spotify or save playlists | 5 minutes |
+| 4 | **Anthropic API key**: only for Ask Claude | optional |
+
+The one worth waiting for is the export. Trends, Explore and Recap are built on years of plays, and connecting
+Spotify alone gives you the last 30 days.
 
 ```bash
 git clone https://github.com/<you>/spotiscovery.git

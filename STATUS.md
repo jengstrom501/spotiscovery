@@ -27,6 +27,10 @@ Round 6 (2026-09-26): Spotify green is the default theme, colorblind mode is an 
 (height transition, skeleton first, then /api/explore for that range) instead of jumping to the Explore tab.
 Fixed a class collision: a bare `.nm` rule (the Setup not-music list) was turning every rank-row name into a grid.
 
+Round 7 (2026-09-26, /qa on activation energy): demo mode (demo.py, seeded, offline, own database file),
+welcome screen leading with it, setup as numbered steps with real time costs. Fixed a signed-shift bug that
+made half the initials tiles undefined (killed the recap card whenever artists had no photo).
+
 ## Next
 - Recommendations: the final top 40 barely moves in the backtest (0-1 hits a year either way); try a taste-fit
   re-rank or Claude re-rank of real candidates, judged by backtest.py. Tried a tag-profile fit: no gain.
