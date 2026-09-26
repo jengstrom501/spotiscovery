@@ -200,6 +200,8 @@ def artist_card(name):
     Hits are cached 30 days, misses 1 day (the artist may get a photo, or a transient error may clear)."""
     def fetch():
         card = {"image": None, "url": "https://open.spotify.com/search/" + quote(name)}
+        if store.DEMO[0]:
+            return {**card, "miss": True}  # demo photos are the initials tiles; no host is contacted
         if connected():
             try:
                 a = _match(_get("/search", q=name, type="artist", limit=5)["artists"]["items"], name)

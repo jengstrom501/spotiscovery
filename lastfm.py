@@ -20,7 +20,14 @@ def _call(method, **params):
     return data if data or "artist" not in params else _raw(method, autocorrect=1, **params)
 
 
+def usable():
+    """Whether artist lookups can be answered at all: with a key, or in the demo, which carries its own."""
+    return bool(os.environ.get("LASTFM_API_KEY")) or store.DEMO[0]
+
+
 def _raw(method, **params):
+    if store.DEMO[0]:
+        return {}  # the demo carries its own cached replies; anything not in them just comes back empty
     key = os.environ.get("LASTFM_API_KEY")
     if not key:
         raise RuntimeError("Add a Last.fm API key in Setup.")

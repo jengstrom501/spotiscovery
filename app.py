@@ -22,6 +22,7 @@ if os.path.exists(os.path.join(HERE, ".env")):
 
 import analyze  # noqa: E402  (after .env so modules see the keys)
 import claude_mode  # noqa: E402
+import demo  # noqa: E402
 import explore  # noqa: E402
 import insights  # noqa: E402
 import lastfm  # noqa: E402
@@ -38,6 +39,17 @@ SETTINGS_FIELDS = {"spotify_client_id": "SPOTIFY_CLIENT_ID", "lastfm_api_key": "
 VALIDATOR_MODULES = {"LASTFM_API_KEY": lastfm, "ANTHROPIC_API_KEY": claude_mode}
 SERVICE_NAMES = {"LASTFM_API_KEY": "Last.fm", "ANTHROPIC_API_KEY": "Anthropic"}
 LOCAL_HOSTS = ("127.0.0.1", "localhost")
+
+
+# Looking around the demo must never touch your real accounts or your saved keys, so the handful of routes that
+# reach outside this machine are closed while it is on.
+NO_DEMO = {"/api/settings", "/api/upload", "/api/sync", "/api/playlist"}
+
+
+@app.before_request
+def block_writes_in_demo():
+    if store.DEMO[0] and request.path in NO_DEMO:
+        return jsonify(error="That is switched off while you are looking at the demo. Turn the demo off first."), 403
 
 
 @app.before_request
@@ -98,10 +110,23 @@ def status():
     with store.db() as c:
         plays = c.execute(f"SELECT COUNT(*), MIN(ts), MAX(ts) FROM plays WHERE {store.MUSIC}").fetchone()
     snap = store.get("spotify") or {}
-    return jsonify(spotify_app=bool(os.environ.get("SPOTIFY_CLIENT_ID")), connected=spotify.connected(),
+    return jsonify(demo=store.DEMO[0],
+                   spotify_app=bool(os.environ.get("SPOTIFY_CLIENT_ID")), connected=spotify.connected(),
                    playlists=spotify.can_playlist(),
-                   lastfm=bool(os.environ.get("LASTFM_API_KEY")), claude=claude_mode.available(),
+                   lastfm=lastfm.usable(), claude=claude_mode.available(),
                    plays=plays[0], first=plays[1], last=plays[2], synced_at=snap.get("at"))
+
+
+@app.post("/api/demo")
+def set_demo():
+    """Turn the demo on or off. Body {"on": true|false}. The demo is a separate database file built on first use,
+    so nothing here reads or writes your own history."""
+    on = bool((request.get_json(silent=True) or {}).get("on"))
+    if on and not demo.ready():
+        demo.build()
+    store.DEMO[0] = on
+    store.VERSION[0] += 1  # explore.plays() and friends cache per database; make them reload
+    return jsonify(demo=on)
 
 
 @app.get("/api/progress")
@@ -234,7 +259,7 @@ def explore_range():
     r = explore.explore(request.args.get("start"), request.args.get("end"))
     if "summary" in r:
         r["on_this_day"] = explore.on_this_day()
-        lf = lastfm if os.environ.get("LASTFM_API_KEY") else None
+        lf = lastfm if lastfm.usable() else None
         if lf:
             try:
                 explore.with_sound(r, lf)
@@ -248,14 +273,14 @@ def explore_range():
 def compare_periods():
     a = request.args
     r = explore.compare(a.get("a_start"), a.get("a_end"), a.get("b_start"), a.get("b_end"),
-                        lastfm if os.environ.get("LASTFM_API_KEY") else None)
+                        lastfm if lastfm.usable() else None)
     return jsonify(r), (400 if "error" in r else 200)
 
 
 @app.get("/api/song")
 def song_page():
     a = request.args
-    r = explore.song(a.get("artist", ""), a.get("track", ""), lastfm if os.environ.get("LASTFM_API_KEY") else None,
+    r = explore.song(a.get("artist", ""), a.get("track", ""), lastfm if lastfm.usable() else None,
                      a.get("start"), a.get("end"))
     if "error" not in r:
         r.update(spotify.artist_card(r["artist"]))  # the artist's photo heads the song page
@@ -265,7 +290,7 @@ def song_page():
 @app.get("/api/artist")
 def artist_page():
     name = request.args.get("name", "")
-    r = explore.artist(name, lastfm if os.environ.get("LASTFM_API_KEY") else None,
+    r = explore.artist(name, lastfm if lastfm.usable() else None,
                        request.args.get("start"), request.args.get("end"))
     if "error" not in r:
         r.update(spotify.artist_card(name))
@@ -282,7 +307,7 @@ def day_page():
 def found_early():
     """Every artist you found early, first played in [start, end] (default all time). pending = artists still
     being looked up on MusicBrainz in the background; the page polls until it's 0."""
-    if not os.environ.get("LASTFM_API_KEY"):
+    if not lastfm.usable():
         return jsonify(finds=[], pending=0, note="Needs a Last.fm key: it knows how big each artist is today.")
     c = explore.plays()
     if not c["rows"]:
@@ -309,7 +334,7 @@ def recap():
         eras = analyze.trends(lastfm).get("eras")
     except Exception:  # eras need Last.fm tags; the other insights don't
         pass
-    found = insights.find(lastfm if os.environ.get("LASTFM_API_KEY") else None,
+    found = insights.find(lastfm if lastfm.usable() else None,
                           f"{y}-01-01" if y else None, f"{y}-12-31" if y else None, y or "all time", prev, r, eras)
     photos = {}
     for i in found[:8]:  # photos for the ones that can reach the card

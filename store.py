@@ -9,6 +9,14 @@ import unicodedata
 from datetime import datetime
 
 DB_PATH = os.environ.get("DEEP_CUTS_DB", os.path.join(os.path.dirname(__file__), "deep_cuts.db"))
+# The demo lives in its own file, so looking around it can never touch or dirty your real history.
+# ponytail: one in-process flag, which is right for an app that serves one person on their own machine.
+DEMO_PATH = os.path.join(os.path.dirname(DB_PATH) or ".", "demo.db")
+DEMO = [False]
+
+
+def path():
+    return DEMO_PATH if DEMO[0] else DB_PATH
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS plays (
@@ -61,15 +69,15 @@ VERSION = [0]
 
 
 def db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(path())
     conn.executescript(SCHEMA)
-    if not _migrated:
+    if path() not in _migrated:  # each database gets the column check once, not just the first one opened
         have = {r[1] for r in conn.execute("PRAGMA table_info(plays)")}
         for col, typ in EXTRA.items():
             if col not in have:
                 conn.execute(f"ALTER TABLE plays ADD COLUMN {col} {typ}")
         conn.commit()
-        _migrated.append(True)
+        _migrated.append(path())
     return conn
 
 

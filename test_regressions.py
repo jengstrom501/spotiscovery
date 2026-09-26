@@ -581,6 +581,52 @@ def feature_theme_tokens():
     assert {"--accent", "--accent-rgb", "--danger", "--ramp-1", "--ramp-4"} <= names(cvd)
     assert "92,176,255" not in html.replace(cvd, "") and "5CB0FF" not in html.replace(cvd, ""), "blue hardcoded outside the cvd theme"
     assert 'id="cvd-toggle"' in html and "sp.theme" in html
+    # Regression: the initials-tile gradient indexed SERIES with a SIGNED shift of an unsigned hash. Half the
+    # names came out negative, so the colour was undefined: silently wrong in HTML, and an exception that killed
+    # the whole recap card on canvas. Only showed up once artists had no photo (the demo), never with real ones.
+    assert ">> 4" not in html.replace(">>> 4", ""), "signed shift on the artist-name hash is back"
+
+
+def feature_demo_mode():
+    # Feature: a second database of made-up data so someone can see the app before spending a minute on an API key
+    # or five days waiting for Spotify. It must work with no keys and no network, and must never touch the real
+    # database or the user's accounts.
+    import demo
+    store = deep_cuts.store
+    real_before = client.get("/api/status").get_json()["plays"]
+
+    calls = []
+    orig = deep_cuts.requests.get, deep_cuts.spotify.requests.get, deep_cuts.lastfm.requests.get
+    boom = lambda *a, **k: (calls.append(a[:1]), (_ for _ in ()).throw(AssertionError("demo hit the network")))[0]
+    key = os.environ.pop("LASTFM_API_KEY", None)  # the demo has to stand up without one
+    deep_cuts.requests.get = deep_cuts.spotify.requests.get = deep_cuts.lastfm.requests.get = boom
+    try:
+        assert client.post("/api/demo", json={"on": True}).get_json() == {"demo": True}
+        st = client.get("/api/status").get_json()
+        assert st["demo"] and st["plays"] > 5000 and st["lastfm"], st  # lastfm reads as usable: answers are cached
+        # Every view has to have something to show, or the demo undersells the app
+        t = client.get("/api/trends").get_json()
+        assert len(t["eras"]) >= 2 and t["mainstream"] and t["lost"]["artists"], "trends is thin"
+        e = client.get("/api/explore", query_string={"start": "2024-01-01", "end": "2024-12-31"}).get_json()
+        assert e["summary"]["hours"] > 50 and e["sound"] and len(e["travel"]["countries"]) >= 2, "explore is thin"
+        assert e["albums"]["front_to_back"], "no album listens, so album vs cherry-pick says nothing"
+        assert len(client.get("/api/recap", query_string={"year": "2024"}).get_json()["insights"]) >= 5
+        assert len(client.get("/api/similar").get_json()) >= 5 and client.get("/api/favorites").get_json()
+        assert client.get("/api/deep-cuts").get_json(), "no missed songs"
+        assert client.get("/api/found-early").get_json()["finds"], "nobody found early"
+        # Anything that would touch the real world stays shut
+        for path in ("/api/settings", "/api/upload", "/api/sync", "/api/playlist"):
+            assert client.post(path).status_code == 403, path
+        assert not calls, calls
+    finally:
+        deep_cuts.requests.get, deep_cuts.spotify.requests.get, deep_cuts.lastfm.requests.get = orig
+        client.post("/api/demo", json={"on": False})
+        if key is not None:
+            os.environ["LASTFM_API_KEY"] = key
+    # Back to the real database, untouched
+    assert client.get("/api/status").get_json()["plays"] == real_before
+    assert not store.DEMO[0] and store.path() == store.DB_PATH
+    assert demo.ready() and demo.build() > 5000  # rebuilding is safe to redo
 
 
 if __name__ == "__main__":

@@ -115,7 +115,39 @@
   @media (max-width: 640px) { .switch .wide { display: none; } }  /* keep the header on one row */
   @media (prefers-reduced-motion: reduce) { .switch .track, .switch .track::after { transition: none; } }
 
+  /* ---- demo: a pill that is always on screen, and a bar that explains it once you are in */
+  .demo-pill { margin-left: 10px; font: 11px var(--mono); text-transform: uppercase; letter-spacing: .08em;
+               color: var(--accent-ink); background: var(--accent); padding: 2px 8px; border-radius: 99px; vertical-align: 2px; }
+  .demo-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px;
+              margin: 20px 0 4px; padding: 14px 18px; border: 1px solid var(--accent); border-radius: var(--r-card);
+              background: var(--accent-soft); font-size: 14px; }
+  .demo-bar b { font-weight: 600; }
+  /* Entering: it explains a state change the user just caused, so it arrives rather than appearing */
+  .demo-bar { opacity: 0; transform: translateY(-6px); transition: opacity .22s var(--ease), transform .22s var(--ease); }
+  .demo-bar.in { opacity: 1; transform: none; }
+
+  /* ---- welcome: the first thing a new install shows, so it leads with the demo instead of a form */
+  body.fresh main > section.tab, body.fresh nav.tabs { display: none; }
+  .hero { max-width: 68ch; padding: 40px 0 8px; }
+  .hero h1 { font-size: clamp(32px, 5vw, 46px); font-weight: 700; letter-spacing: -.035em; line-height: 1.08; }
+  .hero .lede { margin-top: 16px; font-size: 17px; line-height: 1.55; color: var(--fg-dim); }
+  .hero-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin-top: 28px; }
+  .hero-cta .primary { padding: 12px 22px; font-size: 15px; }
+  .hero-list { list-style: none; margin: 34px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 28px; }
+  .hero-list li { display: grid; gap: 3px; border-top: 1px solid var(--line); padding-top: 12px; }
+  .hero-list b { font-size: 14.5px; font-weight: 600; }
+  .hero-list span { font-size: 13.5px; color: var(--fg-dim); line-height: 1.45; }
+  .hero-foot { margin-top: 32px; font-size: 13.5px; color: var(--fg-dim); max-width: 60ch; line-height: 1.55; }
+
   /* ---- setup */
+  /* Numbered steps: the order and the cost of each one are the whole point, so they are in the label */
+  .step { position: relative; padding-left: 38px; }
+  .step::before { content: attr(data-step); position: absolute; left: 0; top: 0; width: 24px; height: 24px; border-radius: 50%;
+                  display: grid; place-items: center; font: 12px var(--mono); color: var(--fg-dim);
+                  border: 1px solid var(--line); background: var(--surface-2); }
+  .step.done::before { content: "\2713"; color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+  .step label em, .step h3 em { display: block; font-style: normal; font-weight: 400; font-size: 12.5px; color: var(--fg-dim); margin-top: 2px; }
+  .side-step.step { padding-top: 0; }
   .setup-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); padding: 28px; margin-bottom: 40px; }
   .setup-grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 40px; }
   .setup-card h2 { font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
@@ -530,7 +562,7 @@
   @media (prefers-reduced-motion: reduce) {
     .tab { animation: none; }
     .reveal { transition: none; opacity: 1; transform: none; }
-    .era-panel, .era .chev, .switch .track, .switch .track::after { transition: none; }
+    .era-panel, .era .chev, .switch .track, .switch .track::after, .demo-bar { transition: none; }
     .sk .art, .sk i, .sk-h { animation: none; }
     .bar.indet i { animation: none; width: 100%; opacity: .35; }
     dialog.drawer[open] { animation: none; }
@@ -576,6 +608,7 @@
     table.cmp th, table.cmp td { padding-right: 8px; }
     .pickers .custom { width: 100%; }
     .bento { grid-template-columns: 1fr; }
+    .hero-list { grid-template-columns: 1fr; }
     .cell.wide { grid-column: auto; }
     .ex-head h2 { font-size: 28px; }
     dialog.drawer > div, dialog.drawer > p.status { padding-left: 18px; padding-right: 18px; }
@@ -592,7 +625,7 @@
 <body>
 <header class="top">
   <div class="wrap">
-    <div class="brand"><span class="disc" aria-hidden="true"></span>Spotiscovery</div>
+    <div class="brand"><span class="disc" aria-hidden="true"></span>Spotiscovery<span class="demo-pill" id="demo-pill" hidden>Demo</span></div>
     <nav class="tabs" role="tablist" aria-label="Views">
       <button role="tab" aria-selected="true" data-tab="trends">Trends</button>
       <button role="tab" aria-selected="false" data-tab="explore">Explore</button>
@@ -609,6 +642,31 @@
 </header>
 
 <main>
+  <div class="demo-bar" id="demo-bar" hidden>
+    <div><b>This is made-up data.</b> Every number, artist and song here was generated so you can see what the app does. Nothing was read from your accounts.</div>
+    <button class="primary" id="demo-off">Use my own data</button>
+  </div>
+
+  <section class="wrap" id="welcome" hidden>
+    <div class="hero">
+      <h1>See what your listening actually says about you</h1>
+      <p class="lede">Spotiscovery reads your Spotify history and finds the artists you overlooked, the songs you never got to,
+        and the eras your taste moved through. It runs on your machine, on your own data.</p>
+      <div class="hero-cta">
+        <button class="primary" id="try-demo">Show me, with demo data</button>
+        <span class="dim small">No keys, no sign-in, no waiting. Nothing leaves your machine.</span>
+        <p class="status" id="welcome-status" role="status" style="flex-basis:100%"></p>
+      </div>
+      <ul class="hero-list">
+        <li><b>Trends</b><span>Your eras, how mainstream you are, and the artists you drifted from.</span></li>
+        <li><b>Explore</b><span>Any period, down to a single day, against the period before it.</span></li>
+        <li><b>Similar sound</b><span>Songs you have missed and artists near your favourites, saved as playlists.</span></li>
+        <li><b>Recap</b><span>A card of what it worked out about you, ready to post.</span></li>
+      </ul>
+      <p class="hero-foot">Ready to use your own listening? <button class="link" id="welcome-setup">Set it up</button>.
+        A Last.fm key takes a minute; Spotify takes about five days to send your full history, so the demo is the quickest way to see if this is for you.</p>
+    </div>
+  </section>
   <section class="wrap" id="setup" hidden>
     <div class="setup-card">
       <div class="setup-grid">
@@ -616,20 +674,20 @@
           <h2>Keys</h2>
           <form id="keys-form">
           <p class="help" style="margin-top:6px">Saved to <span class="mono">.env</span> on this machine and only sent to the service they belong to. Leave a field blank to keep what is saved. Last.fm and Anthropic keys are checked live.</p>
-          <div class="field">
-            <label for="key-spotify">Spotify Client ID</label>
-            <input type="password" id="key-spotify" autocomplete="off" placeholder="Not set">
-            <p class="help">Create an app in the <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">Spotify developer dashboard</a> with redirect URI <span class="mono">http://127.0.0.1:8888/callback</span>.</p>
-          </div>
-          <div class="field">
-            <label for="key-lastfm">Last.fm API key</label>
+          <div class="field step" data-step="1">
+            <label for="key-lastfm">Last.fm API key <em>1 minute, free, required</em></label>
             <input type="password" id="key-lastfm" autocomplete="off" placeholder="Not set">
-            <p class="help">Free, takes a minute: <a href="https://www.last.fm/api/account/create" target="_blank" rel="noopener">create a Last.fm API account</a>.</p>
+            <p class="help">Every recommendation and genre comes from here. <a href="https://www.last.fm/api/account/create" target="_blank" rel="noopener">Create a Last.fm API account</a>, then paste the key.</p>
           </div>
-          <div class="field">
-            <label for="key-claude">Anthropic API key (optional)</label>
+          <div class="field step" data-step="3">
+            <label for="key-spotify">Spotify Client ID <em>5 minutes, only for connecting Spotify</em></label>
+            <input type="password" id="key-spotify" autocomplete="off" placeholder="Not set">
+            <p class="help">Skip this if you are only uploading your history. To connect Spotify, create an app in the <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">Spotify developer dashboard</a> with redirect URI <span class="mono">http://127.0.0.1:8888/callback</span>.</p>
+          </div>
+          <div class="field step" data-step="4">
+            <label for="key-claude">Anthropic API key <em>optional</em></label>
             <input type="password" id="key-claude" autocomplete="off" placeholder="Not set">
-            <p class="help">Turns on Ask Claude. <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Get a key</a>.</p>
+            <p class="help">Turns on Ask Claude, which suggests sound directions. <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Get a key</a>.</p>
           </div>
           <div class="row" style="margin-top:20px">
             <button class="primary" type="submit" id="save-keys">Save keys</button>
@@ -638,17 +696,18 @@
           </form>
         </div>
         <div>
-          <div class="side-step">
-            <h3>Connect Spotify</h3>
-            <p>Top artists, recent plays, follows and saved tracks. Anything you already know is left out of the picks. Connecting also lets you save any list of picks as a private playlist.</p>
+          <div class="side-step step" data-step="2">
+            <h3>Your history: the quick way <em>instant, last 30 days</em></h3>
+            <p>Connect Spotify for your top artists, recent plays, follows and saved tracks. Enough to get recommendations going today, and it lets you save any list of picks as a private playlist. Needs the Client ID below.</p>
             <div class="row">
               <a class="btn primary" href="/login" id="connect">Connect Spotify</a>
               <button id="sync" hidden>Re-sync</button>
             </div>
           </div>
-          <div class="side-step">
-            <h3>Import full history</h3>
-            <p>On your <a href="https://www.spotify.com/account/privacy/" target="_blank" rel="noopener">Spotify privacy page</a>, request <b>Account data</b> (your last year, within about 5 days) or <b>Extended streaming history</b> (everything, up to 30 days). Upload the zip Spotify sends you, or unzip it yourself and upload the <span class="mono">StreamingHistory_music_*.json</span> / <span class="mono">Streaming_History_Audio_*.json</span> files.</p>
+          <div class="side-step step" data-step="2">
+            <h3>Your history: the good way <em>about 5 days to arrive</em></h3>
+            <p>This is the one worth waiting for: years of plays, which is what Trends, Explore and Recap are built on.
+              On your <a href="https://www.spotify.com/account/privacy/" target="_blank" rel="noopener">Spotify privacy page</a>, request <b>Account data</b> (your last year, arrives in about 5 days) or <b>Extended streaming history</b> (everything you have ever played, up to 30 days). Spotify emails you a zip. Upload it here whole, no unzipping needed.</p>
             <input type="file" id="files" accept=".json,.zip" multiple aria-label="Streaming history JSON or zip files">
             <p class="help" id="plays-info" style="margin-top:10px"></p>
           </div>
@@ -916,6 +975,18 @@ function setSetup(open) {
   $("setup-toggle").setAttribute("aria-expanded", open);
 }
 $("setup-toggle").onclick = () => setSetup($("setup").hidden);
+$("welcome-setup").onclick = () => { setSetup(true); $("setup").scrollIntoView({ behavior: "smooth", block: "start" }); };
+
+// ---- demo mode: a second database of made-up data, built on first use. Switching either way reloads, because
+// every tab caches what it loaded and all of it belongs to the other database.
+async function setDemo(on, btn) {
+  await run(on ? "welcome-status" : "setup-status", on ? "Building the demo…" : "Switching back…", async () => {
+    await api("/api/demo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ on }) });
+    location.replace(location.pathname);  // replace, so Back does not bounce you into the other database
+  }, null, btn);
+}
+$("try-demo").onclick = (e) => setDemo(true, e.target);
+$("demo-off").onclick = (e) => setDemo(false, e.target);
 
 async function loadStatus() {
   state = await api("/api/status");
@@ -943,9 +1014,20 @@ async function loadStatus() {
     say("setup-status", "Spotify login failed: " + err, true);
     history.replaceState(null, "", location.pathname);  // a reload shouldn't show the old error again
   }
+  // Steps tick off as they are done, so the setup card shows how far along you are at a glance
+  const done = { 1: state.lastfm, 2: state.connected || state.plays, 3: state.spotify_app, 4: state.claude };
+  document.querySelectorAll(".step").forEach((el) => el.classList.toggle("done", !!done[el.dataset.step]));
+  $("demo-pill").hidden = !state.demo;
+  $("demo-bar").hidden = !state.demo;
+  if (state.demo) requestAnimationFrame(() => $("demo-bar").classList.add("in"));
+  // A brand new install gets the welcome instead of a form it has no reason to trust yet
+  const fresh = noData && !state.demo;
+  $("welcome").hidden = !fresh;
+  document.body.classList.toggle("fresh", fresh);  // the tabs have nothing to say yet; the welcome speaks for them
+  if (fresh) reveal($("welcome").firstElementChild);
   if (firstStatus) {
     firstStatus = false;
-    setSetup(!!err || !state.lastfm || noData);
+    setSetup(!!err || (!fresh && (!state.lastfm || noData)));
   }
   loadNotMusic();
 }
@@ -1941,7 +2023,7 @@ async function drawRecap() {
     } else {
       const hsh = [...name].reduce((n, ch) => (n * 31 + ch.charCodeAt(0)) >>> 0, 7);
       const g = ctx.createLinearGradient(x, y, x + s, y + s);
-      g.addColorStop(0, SERIES[hsh % SERIES.length] + "8c"); g.addColorStop(.7, SERIES[(hsh >> 4) % SERIES.length] + "33"); g.addColorStop(1, INK.bg);
+      g.addColorStop(0, SERIES[hsh % SERIES.length] + "8c"); g.addColorStop(.7, SERIES[(hsh >>> 4) % SERIES.length] + "33"); g.addColorStop(1, INK.bg);
       ctx.fillStyle = g; ctx.fillRect(x, y, s, s);
       const ini = name.replace(/^the\s+/i, "").split(/\s+/).slice(0, 2).map((w) => [...w][0]).join("").toUpperCase();
       text(ini, x + s / 2, y + s / 2 + s * .12, { size: s * .34, align: "center", color: "rgba(236,233,226,.85)", track: -.04 });
@@ -2311,7 +2393,7 @@ async function loadTrends() {
 // Initials on a gradient picked from the name, so artists without a photo still look distinct.
 function tile(name) {
   const h = [...name].reduce((n, ch) => (n * 31 + ch.charCodeAt(0)) >>> 0, 7);
-  const a = SERIES[h % SERIES.length], b = SERIES[(h >> 4) % SERIES.length];
+  const a = SERIES[h % SERIES.length], b = SERIES[(h >>> 4) % SERIES.length];  // >>> not >>: the hash is unsigned
   const initials = name.replace(/^the\s+/i, "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => [...w][0]).join("").toUpperCase();
   return `<span class="ph" aria-hidden="true" style="background: linear-gradient(135deg, ${a}8c, ${b}33 70%, #0E0E0C)">${esc(initials)}</span>`;
 }
