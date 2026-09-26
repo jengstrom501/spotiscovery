@@ -29,8 +29,15 @@ def _raw(method, **params):
         if wait > 0:
             time.sleep(wait)
         _last[0] = time.time()
-    r = requests.get(API, params={"method": method, "api_key": key, "format": "json", **params}, timeout=20)
-    data = r.json() if r.content else {}
+    for attempt in range(3):  # Last.fm sometimes answers with an HTML error page or a "try again" code; one retry usually clears it
+        r = requests.get(API, params={"method": method, "api_key": key, "format": "json", **params}, timeout=20)
+        try:
+            data = r.json() if r.content else {}
+        except ValueError:
+            data = {"error": 16, "message": f"unreadable reply (HTTP {r.status_code})"}
+        if data.get("error") not in (8, 16, 29):  # operation failed, temporarily unavailable, rate limited
+            break
+        time.sleep(2 * (attempt + 1))
     if "error" in data:
         if data["error"] == 6:  # artist/tag not found
             return {}

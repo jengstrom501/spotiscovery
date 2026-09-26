@@ -503,6 +503,31 @@ def feature_smarter_similar():
     assert "nope" not in an.inputs(now=True)[1]
 
 
+def issue_lastfm_unreadable_reply():
+    # Regression: a Last.fm HTML error page (not JSON) turned /api/found-early into a 500. Now retried, then a clear error.
+    lf = deep_cuts.lastfm
+
+    class Reply:
+        def __init__(self, body, status=200): self.content, self.status_code = body.encode(), status
+        def json(self):
+            import json
+            return json.loads(self.content)
+    replies = [Reply("<html>502 Bad Gateway</html>", 502), Reply('{"artist": {"name": "X"}}')]
+    orig = lf.requests.get, lf.time.sleep, os.environ.get("LASTFM_API_KEY")
+    lf.requests.get, lf.time.sleep, os.environ["LASTFM_API_KEY"] = (lambda *a, **k: replies.pop(0)), (lambda s: None), "test"
+    try:
+        assert lf._raw("artist.getInfo", artist="X") == {"artist": {"name": "X"}}
+        replies[:] = [Reply("<html>down</html>", 503)] * 3
+        try:
+            lf._raw("artist.getInfo", artist="X")
+            raise AssertionError("should have raised")
+        except RuntimeError as e:
+            assert "HTTP 503" in str(e), e
+    finally:
+        lf.requests.get, lf.time.sleep = orig[:2]
+        os.environ.pop("LASTFM_API_KEY") if orig[2] is None else os.environ.update(LASTFM_API_KEY=orig[2])
+
+
 if __name__ == "__main__":
     for name, check in list(globals().items()):
         if name.startswith(("issue_", "feature_")):
