@@ -4,3 +4,7 @@ data/
 __pycache__/
 *.pyc
 .gstack/
+
+# Working notes: kept locally, not published
+CLAUDE.md
+STATUS.md
